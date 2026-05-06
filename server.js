@@ -38,6 +38,58 @@ app.put('/api/sabores/:id', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ─── INGREDIENTES ─────────────────────────────
+app.get('/api/ingredientes', wrap(async (req, res) => {
+  res.json(await db.all('SELECT * FROM ingredientes ORDER BY nome'));
+}));
+
+app.post('/api/ingredientes', wrap(async (req, res) => {
+  const { nome, unidade, preco_unitario, volume } = req.body;
+  const r = await db.run('INSERT INTO ingredientes (nome,unidade,preco_unitario,volume) VALUES (?,?,?,?)', [nome, unidade, preco_unitario, volume]);
+  res.json({ id: r.lastID });
+}));
+
+app.put('/api/ingredientes/:id', wrap(async (req, res) => {
+  const { nome, unidade, preco_unitario, volume } = req.body;
+  await db.run('UPDATE ingredientes SET nome=?,unidade=?,preco_unitario=?,volume=? WHERE id=?', [nome, unidade, preco_unitario, volume, req.params.id]);
+  res.json({ ok: true });
+}));
+
+app.delete('/api/ingredientes/:id', wrap(async (req, res) => {
+  await db.run('DELETE FROM ingredientes WHERE id=?', [req.params.id]);
+  // Also delete from recipes
+  await db.run('DELETE FROM receita_ingredientes WHERE ingrediente_id=?', [req.params.id]);
+  res.json({ ok: true });
+}));
+
+// ─── RECEITAS ─────────────────────────────────
+app.get('/api/receitas/:sabor_id', wrap(async (req, res) => {
+  const sabor_id = req.params.sabor_id;
+  const sabor = await db.get('SELECT rendimento_receita FROM sabores WHERE id=?', [sabor_id]);
+  const ingredientes = await db.all(`
+    SELECT r.id, r.quantidade, i.id as ingrediente_id, i.nome, i.unidade, i.preco_unitario, i.volume
+    FROM receita_ingredientes r
+    JOIN ingredientes i ON r.ingrediente_id = i.id
+    WHERE r.sabor_id = ?
+  `, [sabor_id]);
+  res.json({ rendimento: sabor.rendimento_receita, ingredientes });
+}));
+
+app.post('/api/receitas/:sabor_id', wrap(async (req, res) => {
+  const sabor_id = req.params.sabor_id;
+  const { rendimento, ingredientes } = req.body; // ingredientes = [{ingrediente_id, quantidade}]
+  
+  await db.run('UPDATE sabores SET rendimento_receita=? WHERE id=?', [rendimento, sabor_id]);
+  await db.run('DELETE FROM receita_ingredientes WHERE sabor_id=?', [sabor_id]);
+  
+  for (const ing of ingredientes) {
+    await db.run('INSERT INTO receita_ingredientes (sabor_id, ingrediente_id, quantidade) VALUES (?,?,?)',
+      [sabor_id, ing.ingrediente_id, ing.quantidade]);
+  }
+  res.json({ ok: true });
+}));
+
+
 // ─── LANÇAMENTOS ─────────────────────────────
 app.get('/api/lancamentos', wrap(async (req, res) => {
   const { data, mes, ano } = req.query;
@@ -47,7 +99,21 @@ app.get('/api/lancamentos', wrap(async (req, res) => {
     FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id`;
 
   if (data) {
-    res.json(await db.all(base + ' WHERE l.data=? ORDER BY s.categoria, s.nome', [data]));
+    const sqlData = `
+      SELECT 
+        s.id as sabor_id, s.nome as sabor_nome, s.categoria, s.preco,
+        l.id, COALESCE(l.data, ?) as data,
+        COALESCE(l.estoque_inicial, prev.estoque_final, 0) as estoque_inicial,
+        l.fez, l.furou, l.voltaram,
+        COALESCE(l.quantidade, 0) as quantidade,
+        l.estoque_final,
+        (CASE WHEN COALESCE(l.quantidade,0) > 0 THEN MAX(0, l.quantidade - l.voltaram) ELSE MAX(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
+      FROM sabores s
+      LEFT JOIN lancamentos l ON l.sabor_id = s.id AND l.data = ?
+      LEFT JOIN lancamentos prev ON prev.sabor_id = s.id AND prev.data = (SELECT MAX(data) FROM lancamentos WHERE sabor_id = s.id AND data < ?)
+      WHERE s.ativo = 1
+      ORDER BY s.categoria, s.nome`;
+    res.json(await db.all(sqlData, [data, data, data]));
   } else if (mes && ano) {
     res.json(await db.all(base + " WHERE strftime('%m',l.data)=? AND strftime('%Y',l.data)=? ORDER BY l.data, s.nome",
       [String(mes).padStart(2,'0'), String(ano)]));

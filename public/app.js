@@ -6,9 +6,22 @@
 // ─── ESTADO GLOBAL ───────────────────────────
 const state = {
   sabores: [],
+  ingredientes: [],
+  receitaAtualIngr: [],
+  receitaCustoTotal: 0,
+  receitaRendimento: 20,
   paginaAtual: 'dashboard',
   charts: {}
 };
+
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', {
+  color: '#333',
+  font: { weight: 'bold', size: 11 },
+  anchor: 'end',
+  align: 'top',
+  formatter: (value) => value > 0 ? value : ''
+});
 
 // ─── UTILITÁRIOS ─────────────────────────────
 const $ = id => document.getElementById(id);
@@ -92,40 +105,64 @@ atualizarDataSidebar();
 // ─── DASHBOARD ───────────────────────────────
 async function carregarDashboard() {
   const dataEl = $('dash-data');
-  if (!dataEl.value) dataEl.value = hoje();
+  const isMes = !dataEl.value;
+  const dtRef = dataEl.value || hoje();
 
-  const [resumoDia, resumoMes, evolucao] = await Promise.all([
-    api(`/api/stats/resumo-dia?data=${dataEl.value}`),
-    api(`/api/stats/resumo-mes?mes=${new Date(dataEl.value + 'T12:00:00').getMonth() + 1}&ano=${new Date(dataEl.value + 'T12:00:00').getFullYear()}`),
-    api('/api/stats/evolucao-mensal')
+  const [resumoDia, resumoMes, evolucao, estoqueAtual] = await Promise.all([
+    api(`/api/stats/resumo-dia?data=${dtRef}`),
+    api(`/api/stats/resumo-mes?mes=${new Date(dtRef + 'T12:00:00').getMonth() + 1}&ano=${new Date(dtRef + 'T12:00:00').getFullYear()}`),
+    api('/api/stats/evolucao-mensal'),
+    api('/api/stats/estoque-atual')
   ]);
 
-  // Cards
-  $('stat-vendidos').textContent = fmtNum(resumoDia.totalVendidos);
-  $('stat-receita').textContent = fmt(resumoDia.receita);
-  $('stat-produzidos').textContent = fmtNum(resumoDia.totalProduzidos);
-  $('stat-furou').textContent = fmtNum(resumoDia.totalFurou);
-  $('stat-estoque').textContent = fmtNum(resumoDia.estoqueTotal);
+  // Labels dinâmicos
+  $('stat-vendidos').nextElementSibling.textContent = isMes ? 'Vendidos no Mês' : 'Vendidos no Dia';
+  $('stat-receita').nextElementSibling.textContent = isMes ? 'Receita do Mês' : 'Receita do Dia';
+  $('stat-produzidos').nextElementSibling.textContent = isMes ? 'Produzidos no Mês' : 'Produzidos no Dia';
+  $('stat-furou').nextElementSibling.textContent = isMes ? 'Perdas no Mês' : 'Perdas no Dia';
+  
+  // Ocultar card duplicado de receita do mês na visão mensal
+  $('stat-receita-mes').parentElement.parentElement.style.display = isMes ? 'none' : 'flex';
+
+  // Valores
+  if (isMes) {
+    $('stat-vendidos').textContent = fmtNum(resumoMes.totais.vendidos);
+    $('stat-receita').textContent = fmt(resumoMes.totais.receita);
+    $('stat-produzidos').textContent = fmtNum(resumoMes.totais.produzidos);
+    $('stat-furou').textContent = fmtNum(resumoMes.totais.perdas);
+  } else {
+    $('stat-vendidos').textContent = fmtNum(resumoDia.totalVendidos);
+    $('stat-receita').textContent = fmt(resumoDia.receita);
+    $('stat-produzidos').textContent = fmtNum(resumoDia.totalProduzidos);
+    $('stat-furou').textContent = fmtNum(resumoDia.totalFurou);
+  }
+  
+  const totalEstoqueHoje = estoqueAtual.reduce((a, s) => a + (s.estoque_atual || 0), 0);
+  $('stat-estoque').textContent = fmtNum(totalEstoqueHoje);
   $('stat-receita-mes').textContent = fmt(resumoMes.totais.receita);
 
-  // Gráfico: vendas por sabor hoje
-  const lancsDia = (resumoDia.lancamentos || []).filter(l => l.vendidos > 0);
+  // Gráfico: vendas por sabor hoje ou no mês
+  $('chart-sabores-dia').parentElement.previousElementSibling.textContent = isMes ? 'Top 10 mais vendidas — Mês Atual' : 'Top 10 mais vendidas — Dia Selecionado';
+  const lancsGrafico = isMes ? (resumoMes.porSabor || []) : (resumoDia.lancamentos || []);
+  const dadosGrafico = lancsGrafico.filter(l => l.vendidos > 0).sort((a, b) => b.vendidos - a.vendidos).slice(0, 10);
+  
   destroyChart('chart-sabores-dia');
-  if (lancsDia.length) {
+  if (dadosGrafico.length) {
     state.charts['chart-sabores-dia'] = new Chart($('chart-sabores-dia'), {
       type: 'bar',
       data: {
-        labels: lancsDia.map(l => l.sabor_nome),
+        labels: dadosGrafico.map(l => l.nome || l.sabor_nome),
         datasets: [{
           label: 'Vendidos',
-          data: lancsDia.map(l => Math.max(0, l.vendidos)),
-          backgroundColor: lancsDia.map(l =>
+          data: dadosGrafico.map(l => Math.max(0, l.vendidos)),
+          backgroundColor: dadosGrafico.map(l =>
             l.categoria === 'fruta' ? '#5BB894' :
             l.categoria === 'doce_especial' ? '#F5C518' : '#2DB8C8'),
           borderRadius: 6
         }]
       },
       options: { responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 25 } },
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
       }
@@ -147,39 +184,21 @@ async function carregarDashboard() {
         }]
       },
       options: { responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        layout: { padding: { left: 10, right: 25, top: 20 } },
+        plugins: { 
+          legend: { display: false },
+          datalabels: { display: false }
+        },
         scales: { y: { beginAtZero: true } }
       }
     });
   }
 
-  // Gráfico: top sabores do mês
-  const top = (resumoMes.porSabor || []).filter(s => s.vendidos > 0).slice(0, 12);
-  destroyChart('chart-top-sabores');
-  if (top.length) {
-    state.charts['chart-top-sabores'] = new Chart($('chart-top-sabores'), {
-      type: 'bar',
-      data: {
-        labels: top.map(s => s.nome),
-        datasets: [{
-          label: 'Vendidos no mês',
-          data: top.map(s => s.vendidos),
-          backgroundColor: top.map(s =>
-            s.categoria === 'fruta' ? '#5BB894' :
-            s.categoria === 'doce_especial' ? '#F5C518' : '#2DB8C8'),
-          borderRadius: 6
-        }]
-      },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true } }
-      }
-    });
-  }
+
 }
 
 $('dash-data').addEventListener('change', carregarDashboard);
-$('btn-dash-hoje').addEventListener('click', () => { $('dash-data').value = hoje(); carregarDashboard(); });
+$('btn-dash-mes').addEventListener('click', () => { $('dash-data').value = ''; carregarDashboard(); });
 
 // ─── LANÇAMENTO DIÁRIO ───────────────────────
 async function carregarLancamento() {
@@ -465,7 +484,7 @@ async function gerarRelatorio() {
         labels: dados.dias.map(d => d.data.slice(8) + '/' + d.data.slice(5,7)),
         datasets: [{ label: 'Receita R$', data: dados.dias.map(d => Math.max(0,d.receita)), backgroundColor: '#5BB894', borderRadius: 5 }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { formatter: (v) => v > 0 ? 'R$ ' + v : '' } }, scales: { y: { beginAtZero: true } } }
     });
   }
 
@@ -479,7 +498,7 @@ async function gerarRelatorio() {
       labels: ['Frutas', 'Doces Especiais', 'Zero Lactose'],
       datasets: [{ data: [catData.fruta, catData.doce_especial, catData.zero_lactose], backgroundColor: ['#5BB894','#F5C518','#2DB8C8'], borderWidth: 0 }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 } } } }
   });
 
   // Gráfico ranking
@@ -493,7 +512,7 @@ async function gerarRelatorio() {
         datasets: [{ label: 'Vendidos', data: top15.map(s => s.vendidos),
           backgroundColor: top15.map(s => s.categoria==='fruta'?'#5BB894':s.categoria==='doce_especial'?'#F5C518':'#2DB8C8'), borderRadius: 6 }]
       },
-      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { align: 'right', anchor: 'end' } }, scales: { x: { beginAtZero: true } } }
     });
   }
 
@@ -510,7 +529,7 @@ async function gerarRelatorio() {
           { label: 'Vendidos', data: evolucao.map(e => Math.max(0,e.vendidos)), borderColor:'#1B3A6B', backgroundColor:'rgba(27,58,107,0.1)', fill:false, tension:0.4, yAxisID:'y1' }
         ]
       },
-      options: { responsive:true, maintainAspectRatio:false, scales: { y:{beginAtZero:true,position:'left'}, y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}} } }
+      options: { responsive:true, maintainAspectRatio:false, plugins: { datalabels: { display: false } }, scales: { y:{beginAtZero:true,position:'left'}, y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}} } }
     });
   }
 
@@ -535,6 +554,7 @@ async function carregarGastos() {
   const sel = $('gasto-sabor');
   sel.innerHTML = '<option value="">— Sem sabor específico —</option>';
   sabores.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.nome}</option>`; });
+  $('btn-tab-historico').click();
   await renderizarGastos();
 }
 
@@ -601,6 +621,298 @@ $('modal-gasto-close').addEventListener('click', () => $('modal-gasto').classLis
 $('btn-salvar-gasto').addEventListener('click', salvarGasto);
 $('gastos-mes').addEventListener('change', renderizarGastos);
 $('gastos-ano').addEventListener('change', renderizarGastos);
+
+// ─── ABA: INGREDIENTES E RECEITAS ────────────────
+
+// Tabs controle de gastos
+['ingredientes', 'receitas', 'historico'].forEach(t => {
+  $(`btn-tab-${t}`).addEventListener('click', () => {
+    ['ingredientes', 'receitas', 'historico'].forEach(x => {
+      $(`gastos-tab-${x}`).style.display = 'none';
+      $(`btn-tab-${x}`).classList.replace('btn-primary', 'btn-outline');
+    });
+    $(`gastos-tab-${t}`).style.display = 'block';
+    $(`btn-tab-${t}`).classList.replace('btn-outline', 'btn-primary');
+    if (t === 'ingredientes') renderizarIngredientes();
+    if (t === 'receitas') carregarSaboresReceita();
+  });
+});
+
+let editandoIngredienteId = null;
+
+async function renderizarIngredientes() {
+  state.ingredientes = await api('/api/ingredientes');
+  const tbody = $('ingredientes-tbody');
+  tbody.innerHTML = '';
+  if (!state.ingredientes.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><span class="emoji">🍎</span><p>Nenhum ingrediente cadastrado.</p></td></tr>';
+    return;
+  }
+  state.ingredientes.forEach(i => {
+    const custoUnit = i.preco_unitario / i.volume;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i.nome}</td>
+      <td class="text-red">${fmt(i.preco_unitario)}</td>
+      <td>${i.volume} ${i.unidade}</td>
+      <td>${i.unidade}</td>
+      <td class="text-blue">R$ ${custoUnit.toFixed(4)} / ${i.unidade}</td>
+      <td>
+        <button class="btn btn-primary" onclick="editarIngrediente(${i.id})">✏️</button>
+        <button class="btn btn-danger" onclick="deletarIngrediente(${i.id})">🗑</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function editarIngrediente(id) {
+  const i = state.ingredientes.find(x => x.id === id);
+  editandoIngredienteId = id;
+  $('ingrediente-nome').value = i.nome;
+  $('ingrediente-preco').value = i.preco_unitario;
+  $('ingrediente-volume').value = i.volume;
+  $('ingrediente-unidade').value = i.unidade;
+  $('modal-ingrediente').classList.add('open');
+}
+
+async function deletarIngrediente(id) {
+  if (!confirm('Excluir ingrediente? Ele será removido das receitas.')) return;
+  await api(`/api/ingredientes/${id}`, { method: 'DELETE' });
+  toast('Ingrediente excluído!', 'info');
+  renderizarIngredientes();
+  renderizarReceitaAtual();
+}
+
+$('btn-novo-ingrediente').addEventListener('click', () => {
+  editandoIngredienteId = null;
+  $('ingrediente-nome').value = '';
+  $('ingrediente-preco').value = '';
+  $('ingrediente-volume').value = '';
+  $('ingrediente-unidade').value = 'g';
+  $('modal-ingrediente').classList.add('open');
+});
+$('modal-ingrediente-close').addEventListener('click', () => $('modal-ingrediente').classList.remove('open'));
+
+$('btn-salvar-ingrediente').addEventListener('click', async () => {
+  const obj = {
+    nome: $('ingrediente-nome').value,
+    preco_unitario: parseFloat($('ingrediente-preco').value),
+    volume: parseFloat($('ingrediente-volume').value),
+    unidade: $('ingrediente-unidade').value
+  };
+  if (!obj.nome || !obj.preco_unitario || !obj.volume) return toast('Preencha os campos', 'error');
+  
+  if (editandoIngredienteId) {
+    await api(`/api/ingredientes/${editandoIngredienteId}`, { method: 'PUT', body: obj });
+  } else {
+    await api('/api/ingredientes', { method: 'POST', body: obj });
+  }
+  $('modal-ingrediente').classList.remove('open');
+  toast('✅ Ingrediente salvo!');
+  renderizarIngredientes();
+  if ($('gastos-tab-receitas').style.display !== 'none') renderizarReceitaAtual();
+});
+
+// ─── RECEITAS ─────────────────────────────────
+async function carregarSaboresReceita() {
+  const sabores = state.sabores.length ? state.sabores : await api('/api/sabores');
+  state.sabores = sabores;
+  const sel = $('receita-sabor-select');
+  sel.innerHTML = '<option value="">— Selecione um Sabor —</option>';
+  sabores.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.nome}</option>`; });
+}
+
+$('receita-sabor-select').addEventListener('change', renderizarReceitaAtual);
+
+async function renderizarReceitaAtual() {
+  const id = $('receita-sabor-select').value;
+  if (!id) {
+    $('receita-tbody').innerHTML = '';
+    return;
+  }
+  
+  const rec = await api(`/api/receitas/${id}`);
+  const rendimento = rec.rendimento || 20;
+  $('receita-rendimento').value = rendimento;
+  
+  const tbody = $('receita-tbody');
+  tbody.innerHTML = '';
+  if (!rec.ingredientes.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><span class="emoji">📝</span><p>Nenhum ingrediente na receita.</p></td></tr>';
+  }
+  
+  let custoTotal = 0;
+  state.receitaAtualIngr = rec.ingredientes;
+  
+  rec.ingredientes.forEach((i, idx) => {
+    const custo = (i.preco_unitario / i.volume) * i.quantidade;
+    custoTotal += custo;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i.nome}</td>
+      <td>${i.quantidade}</td>
+      <td>${i.unidade}</td>
+      <td class="text-red">${fmt(custo)}</td>
+      <td style="display:flex; gap:0.5rem; justify-content:center;">
+        <button class="btn btn-primary btn-sm" onclick="editarIngredienteReceita(${idx})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="removerIngredienteReceita(${idx})">🗑</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  $('receita-custo-total').textContent = fmt(custoTotal);
+  $('receita-custo-unit').textContent = fmt(custoTotal / rendimento);
+  
+  state.receitaCustoTotal = custoTotal;
+  state.receitaRendimento = rendimento;
+}
+
+$('btn-salvar-rendimento').addEventListener('click', async () => {
+  const id = $('receita-sabor-select').value;
+  if(!id) return;
+  const rnd = parseInt($('receita-rendimento').value);
+  await api(`/api/receitas/${id}`, { method: 'POST', body: { rendimento: rnd, ingredientes: state.receitaAtualIngr } });
+  toast('✅ Rendimento salvo!');
+  renderizarReceitaAtual();
+});
+
+$('btn-add-receita-ingr').addEventListener('click', async () => {
+  const id = $('receita-sabor-select').value;
+  if(!id) return toast('Selecione um sabor primeiro', 'error');
+  state.ingredientes = await api('/api/ingredientes');
+  const sel = $('receita-ingrediente-select');
+  sel.innerHTML = '';
+  state.ingredientes.forEach(i => { sel.innerHTML += `<option value="${i.id}">${i.nome}</option>`; });
+  $('receita-ingr-qtd').value = '';
+  $('receita-ingr-unidade').textContent = state.ingredientes[0] ? state.ingredientes[0].unidade : '';
+  $('modal-receita-ingr').classList.add('open');
+});
+
+$('receita-ingrediente-select').addEventListener('change', (e) => {
+  const ing = state.ingredientes.find(i => i.id == e.target.value);
+  $('receita-ingr-unidade').textContent = ing ? ing.unidade : '';
+});
+
+$('modal-receita-ingr-close').addEventListener('click', () => $('modal-receita-ingr').classList.remove('open'));
+
+$('btn-salvar-receita-ingr').addEventListener('click', async () => {
+  const id = $('receita-sabor-select').value;
+  const ing_id = $('receita-ingrediente-select').value;
+  const qtd = parseFloat($('receita-ingr-qtd').value);
+  if(!ing_id || !qtd) return toast('Preencha a quantidade', 'error');
+  
+  const ing = state.receitaAtualIngr.find(i => i.ingrediente_id == ing_id);
+  if(ing) ing.quantidade += qtd;
+  else state.receitaAtualIngr.push({ ingrediente_id: ing_id, quantidade: qtd });
+  
+  const rnd = parseInt($('receita-rendimento').value) || 20;
+  await api(`/api/receitas/${id}`, { method: 'POST', body: { rendimento: rnd, ingredientes: state.receitaAtualIngr } });
+  
+  $('modal-receita-ingr').classList.remove('open');
+  toast('✅ Ingrediente adicionado!');
+  renderizarReceitaAtual();
+});
+
+async function editarIngredienteReceita(idx) {
+  const item = state.receitaAtualIngr[idx];
+  const novaQtd = prompt(`Nova quantidade utilizada de ${item.nome} (${item.unidade}):`, item.quantidade);
+  if (novaQtd === null) return;
+  const qtd = parseFloat(novaQtd.replace(',', '.'));
+  if (isNaN(qtd) || qtd <= 0) return toast('Quantidade inválida!', 'error');
+  
+  state.receitaAtualIngr[idx].quantidade = qtd;
+  const id = $('receita-sabor-select').value;
+  const rnd = parseInt($('receita-rendimento').value) || 20;
+  
+  try {
+    await api(`/api/receitas/${id}`, { method: 'POST', body: { rendimento: rnd, ingredientes: state.receitaAtualIngr } });
+    toast('✅ Quantidade atualizada!');
+    renderizarReceitaAtual();
+  } catch (err) {
+    toast('Erro ao atualizar', 'error');
+  }
+}
+
+async function removerIngredienteReceita(idx) {
+  if (!confirm('Remover este ingrediente da receita?')) return;
+  const id = $('receita-sabor-select').value;
+  state.receitaAtualIngr.splice(idx, 1);
+  const rnd = parseInt($('receita-rendimento').value) || 20;
+  
+  try {
+    await api(`/api/receitas/${id}`, { method: 'POST', body: { rendimento: rnd, ingredientes: state.receitaAtualIngr } });
+    toast('🗑 Ingrediente removido!');
+    renderizarReceitaAtual();
+  } catch (err) {
+    toast('Erro ao remover', 'error');
+  }
+}
+
+// ─── PRODUÇÃO (Gerar Gasto) ───────────────────
+$('btn-gerar-gasto-receita').addEventListener('click', () => {
+  const sabor_id = $('receita-sabor-select').value;
+  if(!sabor_id) return toast('Selecione um sabor', 'error');
+  if(!state.receitaCustoTotal) return toast('A receita não tem custo (adicione ingredientes)', 'warning');
+  
+  $('producao-custo-receita').textContent = fmt(state.receitaCustoTotal);
+  $('producao-rendimento').textContent = state.receitaRendimento;
+  $('producao-data').value = hoje();
+  $('producao-multiplicador').value = '1';
+  atualizarCalculoProducao();
+  $('modal-producao').classList.add('open');
+});
+
+$('modal-producao-close').addEventListener('click', () => $('modal-producao').classList.remove('open'));
+
+function atualizarCalculoProducao() {
+  const mult = parseFloat($('producao-multiplicador').value);
+  const qtd = Math.round(state.receitaRendimento * mult);
+  const custo = state.receitaCustoTotal * mult;
+  
+  const sabor_id = $('receita-sabor-select').value;
+  const sabor = state.sabores.find(s => s.id == sabor_id);
+  const preco = sabor ? sabor.preco : 0;
+  
+  const bruto = qtd * preco;
+  const lucro = bruto - custo;
+  
+  $('producao-calc-gasto').textContent = fmt(custo);
+  $('producao-calc-qtd').textContent = qtd;
+  $('producao-calc-bruto').textContent = fmt(bruto);
+  $('producao-calc-lucro').textContent = fmt(lucro);
+  
+  if (lucro < 0) {
+    $('producao-calc-lucro').style.color = '#e63946'; // Red if loss
+  } else {
+    $('producao-calc-lucro').style.color = '#2f855a'; // Green if profit
+  }
+}
+
+$('producao-multiplicador').addEventListener('change', atualizarCalculoProducao);
+
+$('btn-salvar-producao').addEventListener('click', async () => {
+  const mult = parseFloat($('producao-multiplicador').value);
+  const sabor_id = $('receita-sabor-select').value;
+  const data = $('producao-data').value;
+  if(!data) return toast('Selecione a data', 'error');
+  
+  const valor = state.receitaCustoTotal * mult;
+  const qtd = Math.round(state.receitaRendimento * mult);
+  const sabor_nome = $('receita-sabor-select').options[$('receita-sabor-select').selectedIndex].text;
+  
+  await api('/api/gastos', { 
+    method: 'POST', 
+    body: { data, sabor_id, descricao: `Produção: ${sabor_nome} (${mult}x)`, valor, geladinhos_produzidos: qtd } 
+  });
+  
+  $('modal-producao').classList.remove('open');
+  toast('✅ Gasto de produção registrado!', 'success');
+  
+  $('btn-tab-historico').click();
+  renderizarGastos();
+});
 
 // ─── SABORES ─────────────────────────────────
 let editandoSaborId = null;

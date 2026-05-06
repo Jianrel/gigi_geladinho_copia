@@ -92,7 +92,23 @@ async function inicializar() {
       geladinhos_produzidos INTEGER DEFAULT 0,
       criado_em TEXT DEFAULT (datetime('now', 'localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS receita_ingredientes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sabor_id INTEGER NOT NULL REFERENCES sabores(id),
+      ingrediente_id INTEGER NOT NULL REFERENCES ingredientes(id),
+      quantidade REAL NOT NULL DEFAULT 0,
+      UNIQUE(sabor_id, ingrediente_id)
+    );
   `);
+
+  // Migração: adicionar coluna rendimento_receita
+  try {
+    await db.run('ALTER TABLE sabores ADD COLUMN rendimento_receita INTEGER NOT NULL DEFAULT 20');
+    console.log('✅ Coluna rendimento_receita adicionada!');
+  } catch (e) {
+    // Coluna já existe
+  }
 
   // Migração: adicionar coluna quantidade se não existir
   try {
