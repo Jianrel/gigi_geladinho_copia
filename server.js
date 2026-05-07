@@ -158,27 +158,47 @@ app.delete('/api/lancamentos/:data', wrap(async (req, res) => {
 }));
 
 // ─── ESTATÍSTICAS ─────────────────────────────
-app.get('/api/resumo', wrap(async (req, res) => {
+app.get('/api/stats/resumo-dia', wrap(async (req, res) => {
   let dia = req.query.data;
   
-  // Se não informou data, tenta pegar o último dia com lançamentos
-  if (!dia) {
+  // Se não informou data, pega o último dia lançado no banco
+  if (!dia || dia === 'undefined') {
     const ultimo = await db.get('SELECT MAX(data) as data FROM lancamentos');
-    dia = ultimo?.data || new Date().toISOString().slice(0, 10);
+    dia = (ultimo && ultimo.data) ? ultimo.data : new Date().toISOString().slice(0, 10);
   }
 
-  const mes = dia.slice(5, 7);
-  const ano = dia.slice(0, 4);
+  const mes = dia.substring(5, 7);
+  const ano = dia.substring(0, 4);
+
   const lancamentos = await db.all(`
     SELECT l.*, s.nome as sabor_nome, s.preco, s.categoria,
-      (CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
-    FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id WHERE l.data=?`, [dia]);
-  const totalVendidos = lancamentos.reduce((a,l) => a+Math.max(0,l.vendidos), 0);
-  const receita = lancamentos.reduce((a,l) => a+Math.max(0,l.vendidos)*l.preco, 0);
-  const totalProduzidos = lancamentos.reduce((a,l) => a+l.fez, 0);
-  const totalFurou = lancamentos.reduce((a,l) => a+l.furou, 0);
-  const estoqueTotal = lancamentos.reduce((a,l) => a+l.estoque_final, 0);
-  res.json({ data: dia, totalVendidos, receita, totalProduzidos, totalFurou, estoqueTotal, lancamentos });
+      (CASE WHEN COALESCE(l.quantidade,0) > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
+    FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id WHERE l.data = ?::date`, [dia]);
+  
+  const totalVendidos = lancamentos.reduce((a,l) => a + (parseFloat(l.vendidos) || 0), 0);
+  const receita = lancamentos.reduce((a,l) => a + ((parseFloat(l.vendidos) || 0) * parseFloat(l.preco)), 0);
+  const totalProduzidos = lancamentos.reduce((a,l) => a + (l.fez || 0), 0);
+  const totalPerdas = lancamentos.reduce((a,l) => a + (l.furou || 0), 0);
+
+  const statsMes = await db.get(`
+    SELECT 
+      SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
+      COUNT(DISTINCT l.data) as dias,
+      SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) * s.preco) as receita
+    FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id 
+    WHERE EXTRACT(MONTH FROM l.data::date) = ? AND EXTRACT(YEAR FROM l.data::date) = ?`, [parseInt(mes), parseInt(ano)]);
+
+  res.json({
+    data: dia,
+    totalVendidos,
+    receita,
+    totalProduzidos,
+    totalPerdas,
+    vendidosMes: parseFloat(statsMes?.vendidos || 0),
+    receitaMes: parseFloat(statsMes?.receita || 0),
+    diasTrabalhados: parseInt(statsMes?.dias || 0),
+    lancamentos
+  });
 }));
 
 app.get('/api/stats/resumo-mes', wrap(async (req, res) => {
