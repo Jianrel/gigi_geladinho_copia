@@ -3,7 +3,9 @@ require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+  ssl: process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('supabase.com') || process.env.DATABASE_URL.includes('pooler') || !process.env.DATABASE_URL.includes('localhost')) 
+    ? { rejectUnauthorized: false } 
+    : false
 });
 
 class Database {

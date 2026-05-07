@@ -293,16 +293,17 @@ app.post('/api/importar', wrap(async (req, res) => {
   res.json({ ok, erros });
 }));
 
-// ─── INICIAR ─────────────────────────────────
-inicializar().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    const ip = getIPLocal();
-    console.log('\n🍧 ═══════════════════════════════════════════════');
-    console.log('   GIGI GELADINHO GOURMET — Sistema de Estoque');
-    console.log('═══════════════════════════════════════════════\n');
-    console.log(`✅ Servidor rodando!`);
-    console.log(`\n🖥️  Neste computador:   http://localhost:${PORT}`);
-    console.log(`📱 Outros dispositivos: http://${ip}:${PORT}\n`);
-    console.log('Pressione Ctrl+C para encerrar.\n');
+// ─── EXPORTAR PARA VERCEL ─────────────────────────
+// Em ambiente local, você ainda pode rodar com 'node server.js'
+if (require.main === module) {
+  inicializar().then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Servidor local rodando em http://localhost:${PORT}`);
+    });
+  }).catch(err => {
+    console.error('Erro ao inicializar:', err);
+    process.exit(1);
   });
-}).catch(err => { console.error('Erro ao inicializar banco:', err); process.exit(1); });
+}
+
+module.exports = app;
