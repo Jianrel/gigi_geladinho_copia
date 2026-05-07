@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gigi Geladinho Gourmet — Gestão de Estoque</title>
+  <meta name="description" content="Sistema de gerenciamento de estoque para Gigi Geladinho Gourmet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Pacifico&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+</head>
+<body>
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <img src="/Logo.png" alt="Gigi Geladinho Gourmet" class="sidebar-logo">
+      <span class="sidebar-brand">Gigi Geladinho</span>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="#" class="nav-item active" data-page="dashboard" id="nav-dashboard">
+        <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+      </a></li>
+      <li><a href="#" class="nav-item" data-page="lancamento" id="nav-lancamento">
+        <span class="nav-icon">📝</span><span class="nav-label">Lançamento Diário</span>
+      </a></li>
+      <li><a href="#" class="nav-item" data-page="estoque" id="nav-estoque">
+        <span class="nav-icon">📦</span><span class="nav-label">Estoque</span>
+      </a></li>
+      <li><a href="#" class="nav-item" data-page="relatorios" id="nav-relatorios">
+        <span class="nav-icon">📈</span><span class="nav-label">Relatórios</span>
+      </a></li>
+      <li><a href="#" class="nav-item" data-page="gastos" id="nav-gastos">
+        <span class="nav-icon">💰</span><span class="nav-label">Gastos</span>
+      </a></li>
+      <li><a href="#" class="nav-item" data-page="sabores" id="nav-sabores">
+        <span class="nav-icon">🍧</span><span class="nav-label">Sabores</span>
+      </a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="data-atual" id="data-atual"></div>
+    </div>
+  </nav>
+
+  <!-- TOGGLE SIDEBAR (mobile) -->
+  <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Abrir menu">☰</button>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content" id="main-content">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <section id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <div class="header-controls">
+          <button class="btn btn-primary" id="btn-dash-mes">Visão do Mês</button>
+          <input type="date" id="dash-data" class="input-date" title="Escolha um dia específico">
+        </div>
+      </div>
+
+      <div class="cards-grid">
+        <div class="card card-green">
+          <div class="card-icon">🍧</div>
+          <div class="card-info">
+            <div class="card-value" id="stat-vendidos">—</div>
+            <div class="card-label">Vendidos Hoje</div>
+          </div>
+        </div>
+        <div class="card card-yellow">
+          <div class="card-icon">💵</div>
+          <div class="card-info">
+            <div class="card-value" id="stat-receita">—</div>
+            <div class="card-label">Receita do Dia</div>
+          </div>
+        </div>
+        <div class="card card-blue">
+          <div class="card-icon">🏭</div>
+          <div class="card-info">
+            <div class="card-value" id="stat-produzidos">—</div>
+            <div class="card-label">Produzidos</div>
+          </div>
+        </div>
+        <div class="card card-red">
+          <div class="card-icon">💥</div>
+          <div class="card-info">
+            <div class="card-value" id="stat-furou">—</div>
+            <div class="card-label">Perdas (Furou)</div>
+          </div>
+        </div>
+        <div class="card card-teal">
+          <div class="card-icon">📦</div>
+          <div class="card-info">
+            <div class="card-value" id="stat-estoque">—</div>
+            <div class="card-label">Em Estoque</div>
+          </div>
+        </div>
+        <div class="card card-purple">
+          <div class="card-icon">📅</div>
+          <div class="card-info">
+            <div class="card-value" id="stat-receita-mes">—</div>
+            <div class="card-label">Receita do Mês</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card chart-card-wide">
+        <h2>Vendas por Sabor — Hoje</h2>
+        <div class="chart-container">
+          <canvas id="chart-sabores-dia"></canvas>
+        </div>
+      </div>
+      <div class="chart-card chart-card-wide">
+        <h2>Receita Diária — Mês Atual</h2>
+        <div class="chart-container">
+          <canvas id="chart-receita-mes"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══ LANÇAMENTO DIÁRIO ═══ -->
+    <section id="page-lancamento" class="page">
+      <div class="page-header">
+        <h1>Lançamento Diário</h1>
+        <div class="header-controls">
+          <input type="date" id="lanc-data" class="input-date">
+          <button class="btn btn-outline" id="btn-lanc-historico">📋 Ver Histórico</button>
+          <button class="btn btn-success" id="btn-lanc-salvar">💾 Salvar Tudo</button>
+        </div>
+      </div>
+
+      <div class="lancamento-info">
+        <div class="info-badge">
+          <span>💡</span> Preencha os campos de cada sabor. <strong>Vendidos</strong> e <strong>Estoque Final</strong> são calculados automaticamente.
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="lancamento-table" id="lancamento-table">
+            <thead>
+              <tr>
+                <th class="col-sabor">Sabor</th>
+                <th class="col-num">Estq. Inicial</th>
+                <th class="col-num">Fez</th>
+                <th class="col-num">Furou</th>
+                <th class="col-num">Qtd. Dia</th>
+                <th class="col-num">Voltaram</th>
+                <th class="col-num calc">Vendidos</th>
+                <th class="col-num calc">Estq. Final</th>
+                <th class="col-money calc">Valor R$</th>
+              </tr>
+            </thead>
+            <tbody id="lancamento-tbody">
+              <!-- Preenchido por JS -->
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td><strong>TOTAL</strong></td>
+                <td id="tot-inicial">—</td>
+                <td id="tot-fez">—</td>
+                <td id="tot-furou">—</td>
+                <td id="tot-quantidade">—</td>
+                <td id="tot-voltaram">—</td>
+                <td id="tot-vendidos" class="calc">—</td>
+                <td id="tot-final">—</td>
+                <td id="tot-valor" class="calc">—</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal histórico -->
+      <div class="modal" id="modal-historico">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>📋 Histórico de Lançamentos</h3>
+            <button class="modal-close" id="modal-hist-close">✕</button>
+          </div>
+          <div id="historico-lista" class="historico-lista"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ ESTOQUE ═══ -->
+    <section id="page-estoque" class="page">
+      <div class="page-header">
+        <h1>Estoque Atual</h1>
+        <div class="header-controls">
+          <button class="btn btn-primary" id="btn-atualizar-estoque">🔄 Atualizar</button>
+        </div>
+      </div>
+
+      <div class="estoque-filtros">
+        <button class="filtro-btn active" data-cat="all">Todos</button>
+        <button class="filtro-btn" data-cat="fruta">🍉 Frutas</button>
+        <button class="filtro-btn" data-cat="doce_especial">🍫 Doces Especiais</button>
+        <button class="filtro-btn" data-cat="zero_lactose">🥛 Zero Lactose</button>
+      </div>
+
+      <div class="estoque-grid" id="estoque-grid">
+        <!-- Preenchido por JS -->
+      </div>
+
+      <!-- Modal ajuste de estoque -->
+      <div class="modal" id="modal-ajuste-estoque">
+        <div class="modal-box" style="max-width:380px">
+          <div class="modal-header">
+            <h3 id="ajuste-titulo">📦 Ajustar Estoque</h3>
+            <button class="modal-close" id="modal-ajuste-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="ajuste-sabor-info" id="ajuste-sabor-info"></div>
+            <div class="form-group" style="margin-top:16px">
+              <label>Nova Quantidade em Estoque</label>
+              <input type="number" id="ajuste-quantidade" class="input-field" min="0" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>Data do Ajuste</label>
+              <input type="date" id="ajuste-data" class="input-field">
+            </div>
+            <div class="ajuste-aviso">
+              💡 O ajuste atualiza o estoque desta data em todos os módulos do sistema.
+            </div>
+            <button class="btn btn-success btn-full" id="btn-confirmar-ajuste">✅ Confirmar Ajuste</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ RELATÓRIOS ═══ -->
+    <section id="page-relatorios" class="page">
+      <div class="page-header">
+        <h1>Relatórios</h1>
+        <div class="header-controls">
+          <select id="rel-mes" class="input-select">
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+          <select id="rel-ano" class="input-select"></select>
+          <button class="btn btn-primary" id="btn-gerar-rel">Gerar Relatório</button>
+        </div>
+      </div>
+
+      <div class="rel-totais" id="rel-totais"></div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <h2>Receita por Dia</h2>
+          <div class="chart-container">
+            <canvas id="chart-rel-dias"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h2>Vendas por Categoria</h2>
+          <div class="chart-container">
+            <canvas id="chart-rel-categoria"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card chart-card-wide">
+        <h2>🏆 Ranking de Sabores</h2>
+        <div class="chart-container chart-tall">
+          <canvas id="chart-rel-ranking"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card chart-card-wide">
+        <h2>📈 Evolução Mensal</h2>
+        <div class="chart-container">
+          <canvas id="chart-evolucao"></canvas>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <h2>Detalhe por Sabor — Mês Selecionado</h2>
+        <div class="table-responsive">
+          <table class="data-table" id="rel-tabela">
+            <thead>
+              <tr>
+                <th>Sabor</th>
+                <th>Categoria</th>
+                <th>Vendidos</th>
+                <th>Receita</th>
+              </tr>
+            </thead>
+            <tbody id="rel-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ CONTROLE DE GASTOS ═══ -->
+    <section id="page-gastos" class="page">
+      <div class="page-header">
+        <h1>Controle de Gastos & Receitas</h1>
+        <div class="header-controls">
+          <button class="btn btn-outline" id="btn-tab-ingredientes">🍎 Ingredientes</button>
+          <button class="btn btn-outline" id="btn-tab-receitas">📝 Receitas</button>
+          <button class="btn btn-primary" id="btn-tab-historico">💰 Histórico</button>
+        </div>
+      </div>
+
+      <!-- TAB: INGREDIENTES -->
+      <div id="gastos-tab-ingredientes" style="display: none;">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+          <button class="btn btn-success" id="btn-novo-ingrediente">+ Novo Ingrediente</button>
+        </div>
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ingrediente</th>
+                  <th>Preço do Pacote</th>
+                  <th>Volume do Pacote</th>
+                  <th>Unidade</th>
+                  <th>Custo Unitário</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="ingredientes-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: RECEITAS -->
+      <div id="gastos-tab-receitas" style="display: none;">
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-end;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label>Selecione o Sabor</label>
+            <select id="receita-sabor-select" class="input-field" style="width: 250px;"></select>
+          </div>
+          <button class="btn btn-success" id="btn-add-receita-ingr">+ Adicionar Ingrediente à Receita</button>
+        </div>
+
+        <div class="table-card" style="margin-bottom: 1rem;">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ingrediente</th>
+                  <th>Qtd. Utilizada</th>
+                  <th>Unidade</th>
+                  <th>Custo (R$)</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="receita-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Receita Resumo -->
+        <div class="gastos-resumo" style="margin-bottom: 1rem;">
+          <div class="resumo-card">
+            <div class="resumo-titulo">Custo da Receita</div>
+            <div class="resumo-valor" id="receita-custo-total">R$ 0,00</div>
+          </div>
+          <div class="resumo-card">
+            <div class="resumo-titulo">Rendimento (Geladinhos)</div>
+            <div class="resumo-valor" style="display:flex; align-items:center; gap:0.5rem; color:#333;">
+              <input type="number" id="receita-rendimento" class="input-field" style="width:80px; text-align:center; font-size:1.2rem; margin:0;" min="1" value="20">
+              <button class="btn btn-primary btn-sm" id="btn-salvar-rendimento">Salvar</button>
+            </div>
+          </div>
+          <div class="resumo-card">
+            <div class="resumo-titulo">Custo Unitário</div>
+            <div class="resumo-valor" id="receita-custo-unit">R$ 0,00</div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+          <button class="btn btn-success" id="btn-gerar-gasto-receita" style="font-size: 1.1rem; padding: 0.8rem 2rem;">🚀 Gerar Gasto Desta Produção</button>
+        </div>
+      </div>
+
+      <!-- TAB: HISTÓRICO -->
+      <div id="gastos-tab-historico">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.5rem;">
+            <select id="gastos-mes" class="input-select">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+              <option value="3">Março</option><option value="4">Abril</option>
+              <option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option>
+              <option value="9">Setembro</option><option value="10">Outubro</option>
+              <option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <select id="gastos-ano" class="input-select"></select>
+          </div>
+          <button class="btn btn-success" id="btn-novo-gasto">+ Gasto Avulso</button>
+        </div>
+
+        <div class="gastos-resumo" id="gastos-resumo"></div>
+
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="data-table" id="gastos-tabela">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Sabor / Origem</th>
+                  <th>Descrição</th>
+                  <th>Valor</th>
+                  <th>Qtd. Produzida</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="gastos-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal novo gasto avulso -->
+      <div class="modal" id="modal-gasto">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>💰 Registrar Gasto</h3>
+            <button class="modal-close" id="modal-gasto-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Data</label>
+              <input type="date" id="gasto-data" class="input-field">
+            </div>
+            <div class="form-group">
+              <label>Sabor (opcional)</label>
+              <select id="gasto-sabor" class="input-field"></select>
+            </div>
+            <div class="form-group">
+              <label>Descrição</label>
+              <input type="text" id="gasto-desc" class="input-field" placeholder="Ex: Compra de isopor">
+            </div>
+            <div class="form-group">
+              <label>Valor (R$)</label>
+              <input type="number" id="gasto-valor" class="input-field" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Geladinhos Produzidos (opcional)</label>
+              <input type="number" id="gasto-qtd" class="input-field" min="0" value="0">
+            </div>
+            <button class="btn btn-success btn-full" id="btn-salvar-gasto">💾 Salvar Gasto</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Ingrediente -->
+      <div class="modal" id="modal-ingrediente">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>🍎 Ingrediente</h3>
+            <button class="modal-close" id="modal-ingrediente-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Nome do Ingrediente</label>
+              <input type="text" id="ingrediente-nome" class="input-field" placeholder="Ex: Açúcar">
+            </div>
+            <div style="display:flex; gap:1rem;">
+              <div class="form-group" style="flex:1;">
+                <label>Preço do Pacote (R$)</label>
+                <input type="number" id="ingrediente-preco" class="input-field" step="0.01">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>Volume do Pacote</label>
+                <input type="number" id="ingrediente-volume" class="input-field" step="0.1">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>Unid. de Medida</label>
+                <select id="ingrediente-unidade" class="input-field">
+                  <option value="g">Gramas (g)</option>
+                  <option value="ml">Mililitros (ml)</option>
+                  <option value="un">Unidade (un/cx)</option>
+                </select>
+              </div>
+            </div>
+            <p style="font-size:0.85rem; color:#666; margin-top:-10px; margin-bottom:15px;">
+              Ex: Para um pacote de 2kg de açúcar por R$ 8, digite: Preço 8.00, Volume 2000, Unid g.
+            </p>
+            <button class="btn btn-success btn-full" id="btn-salvar-ingrediente">💾 Salvar Ingrediente</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Add Receita -->
+      <div class="modal" id="modal-receita-ingr">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>Adicionar à Receita</h3>
+            <button class="modal-close" id="modal-receita-ingr-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Ingrediente</label>
+              <select id="receita-ingrediente-select" class="input-field"></select>
+            </div>
+            <div class="form-group">
+              <label>Quantidade Utilizada</label>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <input type="number" id="receita-ingr-qtd" class="input-field" step="0.1">
+                <span id="receita-ingr-unidade" style="font-weight:bold; color:#555;">-</span>
+              </div>
+            </div>
+            <button class="btn btn-success btn-full" id="btn-salvar-receita-ingr">➕ Adicionar</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Modal Produção Receita -->
+      <div class="modal" id="modal-producao">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>🚀 Gerar Gasto de Produção</h3>
+            <button class="modal-close" id="modal-producao-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin-bottom:1rem; color:#444;">O custo atual desta receita inteira é de <strong id="producao-custo-receita">R$ 0,00</strong> e rende <strong id="producao-rendimento">0</strong> unidades.</p>
+            <div class="form-group">
+              <label>Fez quantas receitas?</label>
+              <select id="producao-multiplicador" class="input-field">
+                <option value="0.5">Meia receita (0.5x)</option>
+                <option value="1" selected>Uma receita inteira (1x)</option>
+                <option value="1.5">Uma e meia (1.5x)</option>
+                <option value="2">Duas receitas (2x)</option>
+                <option value="3">Três receitas (3x)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Data da Produção</label>
+              <input type="date" id="producao-data" class="input-field">
+            </div>
+            <div style="background:#f8f9fa; padding:1rem; border-radius:6px; margin-bottom:1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div style="display: flex; justify-content: space-between;"><strong>Geladinhos Produzidos:</strong> <span id="producao-calc-qtd" style="color:#5BB894; font-size:1.1rem; font-weight:bold;">0</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Gasto Calculado:</strong> <span id="producao-calc-gasto" style="color:#e63946; font-size:1.1rem; font-weight:bold;">R$ 0,00</span></div>
+              <hr style="border:none; border-top:1px dashed #ccc; margin: 0.2rem 0;">
+              <div style="display: flex; justify-content: space-between;"><strong>Valor Bruto Venda:</strong> <span id="producao-calc-bruto" style="color:#2b6cb0; font-size:1.1rem; font-weight:bold;">R$ 0,00</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Lucro Estimado:</strong> <span id="producao-calc-lucro" style="color:#2f855a; font-size:1.1rem; font-weight:bold;">R$ 0,00</span></div>
+            </div>
+            <button class="btn btn-success btn-full" id="btn-salvar-producao">💰 Confirmar e Lançar Gasto</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SABORES ═══ -->
+    <section id="page-sabores" class="page">
+      <div class="page-header">
+        <h1>Gerenciar Sabores</h1>
+        <div class="header-controls">
+          <button class="btn btn-success" id="btn-novo-sabor">+ Novo Sabor</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Categoria</th>
+                <th>Preço</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="sabores-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal sabor -->
+      <div class="modal" id="modal-sabor">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3 id="modal-sabor-titulo">🍧 Sabor</h3>
+            <button class="modal-close" id="modal-sabor-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Nome</label>
+              <input type="text" id="sabor-nome" class="input-field" placeholder="Nome do sabor">
+            </div>
+            <div class="form-group">
+              <label>Categoria</label>
+              <select id="sabor-cat" class="input-field">
+                <option value="fruta">🍉 Fruta</option>
+                <option value="doce_especial">🍫 Doce Especial</option>
+                <option value="zero_lactose">🥛 Zero Lactose</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Preço (R$)</label>
+              <input type="number" id="sabor-preco" class="input-field" min="0" step="0.50" value="6.00">
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="sabor-ativo" class="input-field">
+                <option value="1">✅ Ativo</option>
+                <option value="0">❌ Inativo</option>
+              </select>
+            </div>
+            <button class="btn btn-success btn-full" id="btn-salvar-sabor">💾 Salvar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- TOAST -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
