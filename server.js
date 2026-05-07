@@ -145,9 +145,12 @@ app.post('/api/lancamentos', wrap(async (req, res) => {
           estoque_inicial=excluded.estoque_inicial, fez=excluded.fez,
           furou=excluded.furou, voltaram=excluded.voltaram,
           estoque_final=excluded.estoque_final, quantidade=excluded.quantidade`,
-        [item.data, item.sabor_id, item.estoque_inicial, item.fez, item.furou, item.voltaram, item.estoque_final, item.quantidade ?? 0]);
+        [item.data, item.sabor_id, item.estoque_inicial || 0, item.fez || 0, item.furou || 0, item.voltaram ?? 0, item.estoque_final || 0, item.quantidade ?? 0]);
       ok++;
-    } catch { erros++; }
+    } catch (e) { 
+      console.error('Erro ao salvar item:', e);
+      erros++; 
+    }
   }
   res.json({ ok, erros });
 }));
