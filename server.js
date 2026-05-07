@@ -126,7 +126,10 @@ app.get('/api/lancamentos/datas', wrap(async (req, res) => {
   const { mes, ano } = req.query;
   let sql = 'SELECT DISTINCT data FROM lancamentos';
   const p = [];
-  if (mes && ano) { sql += " WHERE strftime('%m',data)=? AND strftime('%Y',data)=?"; p.push(String(mes).padStart(2,'0'), String(ano)); }
+  if (mes && ano) { 
+    sql += " WHERE EXTRACT(MONTH FROM data::date) = ? AND EXTRACT(YEAR FROM data::date) = ?"; 
+    p.push(parseInt(mes), parseInt(ano)); 
+  }
   sql += ' ORDER BY data DESC';
   res.json((await db.all(sql, p)).map(r => r.data));
 }));
@@ -155,8 +158,17 @@ app.delete('/api/lancamentos/:data', wrap(async (req, res) => {
 }));
 
 // ─── ESTATÍSTICAS ─────────────────────────────
-app.get('/api/stats/resumo-dia', wrap(async (req, res) => {
-  const dia = req.query.data || new Date().toISOString().slice(0, 10);
+app.get('/api/resumo', wrap(async (req, res) => {
+  let dia = req.query.data;
+  
+  // Se não informou data, tenta pegar o último dia com lançamentos
+  if (!dia) {
+    const ultimo = await db.get('SELECT MAX(data) as data FROM lancamentos');
+    dia = ultimo?.data || new Date().toISOString().slice(0, 10);
+  }
+
+  const mes = dia.slice(5, 7);
+  const ano = dia.slice(0, 4);
   const lancamentos = await db.all(`
     SELECT l.*, s.nome as sabor_nome, s.preco, s.categoria,
       (CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
