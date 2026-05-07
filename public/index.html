@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gigi Geladinho Gourmet — Gestão de Estoque</title>
   <meta name="description" content="Sistema de gerenciamento de estoque para Gigi Geladinho Gourmet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Pacifico&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Pacifico&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
+
 <body>
   <!-- SIDEBAR -->
   <nav class="sidebar" id="sidebar">
@@ -20,23 +24,23 @@
     </div>
     <ul class="sidebar-menu">
       <li><a href="#" class="nav-item active" data-page="dashboard" id="nav-dashboard">
-        <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
-      </a></li>
+          <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+        </a></li>
       <li><a href="#" class="nav-item" data-page="lancamento" id="nav-lancamento">
-        <span class="nav-icon">📝</span><span class="nav-label">Lançamento Diário</span>
-      </a></li>
+          <span class="nav-icon">📝</span><span class="nav-label">Lançamento Diário</span>
+        </a></li>
       <li><a href="#" class="nav-item" data-page="estoque" id="nav-estoque">
-        <span class="nav-icon">📦</span><span class="nav-label">Estoque</span>
-      </a></li>
+          <span class="nav-icon">📦</span><span class="nav-label">Estoque</span>
+        </a></li>
       <li><a href="#" class="nav-item" data-page="relatorios" id="nav-relatorios">
-        <span class="nav-icon">📈</span><span class="nav-label">Relatórios</span>
-      </a></li>
+          <span class="nav-icon">📈</span><span class="nav-label">Relatórios</span>
+        </a></li>
       <li><a href="#" class="nav-item" data-page="gastos" id="nav-gastos">
-        <span class="nav-icon">💰</span><span class="nav-label">Gastos</span>
-      </a></li>
+          <span class="nav-icon">💰</span><span class="nav-label">Gastos</span>
+        </a></li>
       <li><a href="#" class="nav-item" data-page="sabores" id="nav-sabores">
-        <span class="nav-icon">🍧</span><span class="nav-label">Sabores</span>
-      </a></li>
+          <span class="nav-icon">🍧</span><span class="nav-label">Sabores</span>
+        </a></li>
     </ul>
     <div class="sidebar-footer">
       <div class="data-atual" id="data-atual"></div>
@@ -132,7 +136,8 @@
 
       <div class="lancamento-info">
         <div class="info-badge">
-          <span>💡</span> Preencha os campos de cada sabor. <strong>Vendidos</strong> e <strong>Estoque Final</strong> são calculados automaticamente.
+          <span>💡</span> Preencha os campos de cada sabor. <strong>Vendidos</strong> e <strong>Estoque Final</strong>
+          são calculados automaticamente.
         </div>
       </div>
 
@@ -236,12 +241,18 @@
         <h1>Relatórios</h1>
         <div class="header-controls">
           <select id="rel-mes" class="input-select">
-            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-            <option value="3">Março</option><option value="4">Abril</option>
-            <option value="5">Maio</option><option value="6">Junho</option>
-            <option value="7">Julho</option><option value="8">Agosto</option>
-            <option value="9">Setembro</option><option value="10">Outubro</option>
-            <option value="11">Novembro</option><option value="12">Dezembro</option>
+            <option value="1">Janeiro</option>
+            <option value="2">Fevereiro</option>
+            <option value="3">Março</option>
+            <option value="4">Abril</option>
+            <option value="5">Maio</option>
+            <option value="6">Junho</option>
+            <option value="7">Julho</option>
+            <option value="8">Agosto</option>
+            <option value="9">Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
           </select>
           <select id="rel-ano" class="input-select"></select>
           <button class="btn btn-primary" id="btn-gerar-rel">Gerar Relatório</button>
@@ -358,7 +369,7 @@
             </table>
           </div>
         </div>
-        
+
         <!-- Receita Resumo -->
         <div class="gastos-resumo" style="margin-bottom: 1rem;">
           <div class="resumo-card">
@@ -368,7 +379,8 @@
           <div class="resumo-card">
             <div class="resumo-titulo">Rendimento (Geladinhos)</div>
             <div class="resumo-valor" style="display:flex; align-items:center; gap:0.5rem; color:#333;">
-              <input type="number" id="receita-rendimento" class="input-field" style="width:80px; text-align:center; font-size:1.2rem; margin:0;" min="1" value="20">
+              <input type="number" id="receita-rendimento" class="input-field"
+                style="width:80px; text-align:center; font-size:1.2rem; margin:0;" min="1" value="20">
               <button class="btn btn-primary btn-sm" id="btn-salvar-rendimento">Salvar</button>
             </div>
           </div>
@@ -378,7 +390,8 @@
           </div>
         </div>
         <div style="display: flex; justify-content: flex-end;">
-          <button class="btn btn-success" id="btn-gerar-gasto-receita" style="font-size: 1.1rem; padding: 0.8rem 2rem;">🚀 Gerar Gasto Desta Produção</button>
+          <button class="btn btn-success" id="btn-gerar-gasto-receita"
+            style="font-size: 1.1rem; padding: 0.8rem 2rem;">🚀 Gerar Gasto Desta Produção</button>
         </div>
       </div>
 
@@ -387,12 +400,18 @@
         <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
           <div style="display: flex; gap: 0.5rem;">
             <select id="gastos-mes" class="input-select">
-              <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-              <option value="3">Março</option><option value="4">Abril</option>
-              <option value="5">Maio</option><option value="6">Junho</option>
-              <option value="7">Julho</option><option value="8">Agosto</option>
-              <option value="9">Setembro</option><option value="10">Outubro</option>
-              <option value="11">Novembro</option><option value="12">Dezembro</option>
+              <option value="1">Janeiro</option>
+              <option value="2">Fevereiro</option>
+              <option value="3">Março</option>
+              <option value="4">Abril</option>
+              <option value="5">Maio</option>
+              <option value="6">Junho</option>
+              <option value="7">Julho</option>
+              <option value="8">Agosto</option>
+              <option value="9">Setembro</option>
+              <option value="10">Outubro</option>
+              <option value="11">Novembro</option>
+              <option value="12">Dezembro</option>
             </select>
             <select id="gastos-ano" class="input-select"></select>
           </div>
@@ -514,7 +533,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Modal Produção Receita -->
       <div class="modal" id="modal-producao">
         <div class="modal-box">
@@ -523,7 +542,9 @@
             <button class="modal-close" id="modal-producao-close">✕</button>
           </div>
           <div class="modal-body">
-            <p style="margin-bottom:1rem; color:#444;">O custo atual desta receita inteira é de <strong id="producao-custo-receita">R$ 0,00</strong> e rende <strong id="producao-rendimento">0</strong> unidades.</p>
+            <p style="margin-bottom:1rem; color:#444;">O custo atual desta receita inteira é de <strong
+                id="producao-custo-receita">R$ 0,00</strong> e rende <strong id="producao-rendimento">0</strong>
+              unidades.</p>
             <div class="form-group">
               <label>Fez quantas receitas?</label>
               <select id="producao-multiplicador" class="input-field">
@@ -538,12 +559,20 @@
               <label>Data da Produção</label>
               <input type="date" id="producao-data" class="input-field">
             </div>
-            <div style="background:#f8f9fa; padding:1rem; border-radius:6px; margin-bottom:1rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div style="display: flex; justify-content: space-between;"><strong>Geladinhos Produzidos:</strong> <span id="producao-calc-qtd" style="color:#5BB894; font-size:1.1rem; font-weight:bold;">0</span></div>
-              <div style="display: flex; justify-content: space-between;"><strong>Gasto Calculado:</strong> <span id="producao-calc-gasto" style="color:#e63946; font-size:1.1rem; font-weight:bold;">R$ 0,00</span></div>
+            <div
+              style="background:#f8f9fa; padding:1rem; border-radius:6px; margin-bottom:1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div style="display: flex; justify-content: space-between;"><strong>Geladinhos Produzidos:</strong> <span
+                  id="producao-calc-qtd" style="color:#5BB894; font-size:1.1rem; font-weight:bold;">0</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Gasto Calculado:</strong> <span
+                  id="producao-calc-gasto" style="color:#e63946; font-size:1.1rem; font-weight:bold;">R$ 0,00</span>
+              </div>
               <hr style="border:none; border-top:1px dashed #ccc; margin: 0.2rem 0;">
-              <div style="display: flex; justify-content: space-between;"><strong>Valor Bruto Venda:</strong> <span id="producao-calc-bruto" style="color:#2b6cb0; font-size:1.1rem; font-weight:bold;">R$ 0,00</span></div>
-              <div style="display: flex; justify-content: space-between;"><strong>Lucro Estimado:</strong> <span id="producao-calc-lucro" style="color:#2f855a; font-size:1.1rem; font-weight:bold;">R$ 0,00</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Valor Bruto Venda:</strong> <span
+                  id="producao-calc-bruto" style="color:#2b6cb0; font-size:1.1rem; font-weight:bold;">R$ 0,00</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;"><strong>Lucro Estimado:</strong> <span
+                  id="producao-calc-lucro" style="color:#2f855a; font-size:1.1rem; font-weight:bold;">R$ 0,00</span>
+              </div>
             </div>
             <button class="btn btn-success btn-full" id="btn-salvar-producao">💰 Confirmar e Lançar Gasto</button>
           </div>
@@ -620,5 +649,9 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script src="app.js"></script>
+  <footer>
+    <p>teste oi</p>
+  </footer>
 </body>
+
 </html>
