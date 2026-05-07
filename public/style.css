@@ -66,9 +66,12 @@ body {
 }
 
 .sidebar-logo {
-  width: 48px; height: 48px;
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
   border-radius: 50%;
-  object-fit: cover;
+  background: white;
+  padding: 4px;
   border: 2px solid var(--verde);
 }
 

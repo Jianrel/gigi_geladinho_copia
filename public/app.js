@@ -106,14 +106,19 @@ atualizarDataSidebar();
 async function carregarDashboard() {
   const dataEl = $('dash-data');
   const isMes = !dataEl.value;
-  const dtRef = dataEl.value || hoje();
+  const dtRef = dataEl.value || 'undefined';
 
-  const [resumoDia, resumoMes, evolucao, estoqueAtual] = await Promise.all([
+  const [resumoDia, evolucao, estoqueAtual] = await Promise.all([
     api(`/api/stats/resumo-dia?data=${dtRef}`),
-    api(`/api/stats/resumo-mes?mes=${new Date(dtRef + 'T12:00:00').getMonth() + 1}&ano=${new Date(dtRef + 'T12:00:00').getFullYear()}`),
     api('/api/stats/evolucao-mensal'),
     api('/api/stats/estoque-atual')
   ]);
+
+  // Se o servidor sugeriu uma data diferente (último lançamento), atualiza dtRef
+  const dataFinal = resumoDia.data || hoje();
+  if (isMes && resumoDia.data) {
+    // Manter isMes true mas usar os totais que o servidor calculou
+  }
 
   // Labels dinâmicos
   $('stat-vendidos').nextElementSibling.textContent = isMes ? 'Vendidos no Mês' : 'Vendidos no Dia';
@@ -137,14 +142,14 @@ async function carregarDashboard() {
     $('stat-furou').textContent = fmtNum(resumoDia.totalFurou);
   }
   
-  const totalEstoqueHoje = estoqueAtual.reduce((a, s) => a + (s.estoque_atual || 0), 0);
+  const totalEstoqueHoje = (estoqueAtual || []).reduce((a, s) => a + (parseFloat(s.estoque_atual) || 0), 0);
   $('stat-estoque').textContent = fmtNum(totalEstoqueHoje);
-  $('stat-receita-mes').textContent = fmt(resumoMes.totais.receita);
+  $('stat-receita-mes').textContent = fmt(resumoDia.receitaMes);
 
   // Gráfico: vendas por sabor hoje ou no mês
   $('chart-sabores-dia').parentElement.previousElementSibling.textContent = isMes ? 'Top 10 mais vendidas — Mês Atual' : 'Top 10 mais vendidas — Dia Selecionado';
   const lancsGrafico = isMes ? (resumoMes.porSabor || []) : (resumoDia.lancamentos || []);
-  const dadosGrafico = lancsGrafico.filter(l => l.vendidos > 0).sort((a, b) => b.vendidos - a.vendidos).slice(0, 10);
+  const dadosGrafico = lancsGrafico.filter(l => (parseFloat(l.vendidos) || 0) > 0).sort((a, b) => (parseFloat(b.vendidos) || 0) - (parseFloat(a.vendidos) || 0)).slice(0, 10);
   
   destroyChart('chart-sabores-dia');
   if (dadosGrafico.length) {
@@ -525,8 +530,8 @@ async function gerarRelatorio() {
       data: {
         labels: evolucao.map(e => { const [a,m] = e.mes.split('-'); return meses[parseInt(m)-1]+'/'+a.slice(2); }),
         datasets: [
-          { label: 'Receita R$', data: evolucao.map(e => Math.max(0,e.receita)), borderColor:'#5BB894', backgroundColor:'rgba(91,184,148,0.1)', fill:true, tension:0.4, yAxisID:'y' },
-          { label: 'Vendidos', data: evolucao.map(e => Math.max(0,e.vendidos)), borderColor:'#1B3A6B', backgroundColor:'rgba(27,58,107,0.1)', fill:false, tension:0.4, yAxisID:'y1' }
+          { label: 'Receita R$', data: evolucao.map(e => Math.max(0, parseFloat(e.receita_total || 0))), borderColor:'#5BB894', backgroundColor:'rgba(91,184,148,0.1)', fill:true, tension:0.4, yAxisID:'y' },
+          { label: 'Vendidos', data: evolucao.map(e => Math.max(0, parseFloat(e.vendidos_total || 0))), borderColor:'#1B3A6B', backgroundColor:'rgba(27,58,107,0.1)', fill:false, tension:0.4, yAxisID:'y1' }
         ]
       },
       options: { responsive:true, maintainAspectRatio:false, plugins: { datalabels: { display: false } }, scales: { y:{beginAtZero:true,position:'left'}, y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}} } }
