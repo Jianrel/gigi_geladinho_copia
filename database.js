@@ -1,68 +1,67 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
+require('dotenv').config();
 
-const DB_PATH = path.join(__dirname, 'gigi_estoque.db');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+});
 
-// Wrapper de Promise sobre sqlite3
 class Database {
-  constructor(filePath) {
-    this.db = new sqlite3.Database(filePath);
-    this.db.run('PRAGMA journal_mode = WAL');
-    this.db.run('PRAGMA foreign_keys = ON');
+  _replaceParams(sql) {
+    let i = 1;
+    return sql.replace(/\?/g, () => `$${i++}`);
   }
 
-  run(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function(err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
-      });
-    });
+  async run(sql, params = []) {
+    let pgSql = this._replaceParams(sql);
+    
+    // Adicionar RETURNING id para comandos INSERT automaticamente para simular lastID
+    const isInsert = pgSql.trim().toUpperCase().startsWith('INSERT');
+    if (isInsert && !pgSql.toUpperCase().includes('RETURNING ID')) {
+      pgSql += ' RETURNING id';
+    }
+
+    const res = await pool.query(pgSql, params);
+    let lastID = null;
+    if (res.rows && res.rows.length > 0 && res.rows[0].id) {
+      lastID = res.rows[0].id;
+    }
+    return { lastID, changes: res.rowCount };
   }
 
-  all(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+  async all(sql, params = []) {
+    const pgSql = this._replaceParams(sql);
+    const res = await pool.query(pgSql, params);
+    return res.rows;
   }
 
-  get(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+  async get(sql, params = []) {
+    const pgSql = this._replaceParams(sql);
+    const res = await pool.query(pgSql, params);
+    return res.rows[0];
   }
 
-  exec(sql) {
-    return new Promise((resolve, reject) => {
-      this.db.exec(sql, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+  async exec(sql) {
+    return pool.query(sql);
   }
 }
 
-const db = new Database(DB_PATH);
+const db = new Database();
 
 async function inicializar() {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS sabores (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL UNIQUE,
       categoria TEXT NOT NULL,
       preco REAL NOT NULL,
       ativo INTEGER NOT NULL DEFAULT 1,
-      criado_em TEXT DEFAULT (datetime('now', 'localtime'))
+      rendimento_receita INTEGER NOT NULL DEFAULT 20,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS lancamentos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       data TEXT NOT NULL,
       sabor_id INTEGER NOT NULL REFERENCES sabores(id),
       estoque_inicial INTEGER NOT NULL DEFAULT 0,
@@ -70,31 +69,32 @@ async function inicializar() {
       furou INTEGER NOT NULL DEFAULT 0,
       voltaram INTEGER NOT NULL DEFAULT 0,
       estoque_final INTEGER NOT NULL DEFAULT 0,
-      criado_em TEXT DEFAULT (datetime('now', 'localtime')),
+      quantidade INTEGER NOT NULL DEFAULT 0,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(data, sabor_id)
     );
 
     CREATE TABLE IF NOT EXISTS ingredientes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
       unidade TEXT NOT NULL,
       preco_unitario REAL NOT NULL DEFAULT 0,
       volume REAL NOT NULL DEFAULT 1,
-      criado_em TEXT DEFAULT (datetime('now', 'localtime'))
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS gastos_producao (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       data TEXT NOT NULL,
       sabor_id INTEGER REFERENCES sabores(id),
       descricao TEXT,
       valor REAL NOT NULL DEFAULT 0,
       geladinhos_produzidos INTEGER DEFAULT 0,
-      criado_em TEXT DEFAULT (datetime('now', 'localtime'))
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS receita_ingredientes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       sabor_id INTEGER NOT NULL REFERENCES sabores(id),
       ingrediente_id INTEGER NOT NULL REFERENCES ingredientes(id),
       quantidade REAL NOT NULL DEFAULT 0,
@@ -102,24 +102,8 @@ async function inicializar() {
     );
   `);
 
-  // Migração: adicionar coluna rendimento_receita
-  try {
-    await db.run('ALTER TABLE sabores ADD COLUMN rendimento_receita INTEGER NOT NULL DEFAULT 20');
-    console.log('✅ Coluna rendimento_receita adicionada!');
-  } catch (e) {
-    // Coluna já existe
-  }
-
-  // Migração: adicionar coluna quantidade se não existir
-  try {
-    await db.run('ALTER TABLE lancamentos ADD COLUMN quantidade INTEGER NOT NULL DEFAULT 0');
-    console.log('✅ Coluna quantidade adicionada!');
-  } catch (e) {
-    // Coluna já existe, tudo certo
-  }
-
   const row = await db.get('SELECT COUNT(*) as c FROM sabores');
-  if (row.c === 0) {
+  if (parseInt(row.c) === 0) {
     const sabores = [
       ['Abacate','fruta',6],['Abacaxi','fruta',6],['Açaí','fruta',6],
       ['Buriti','fruta',6],['Coco','fruta',6],['Coco Queimado','fruta',6],
@@ -135,10 +119,10 @@ async function inicializar() {
     for (const [nome, cat, preco] of sabores) {
       await db.run('INSERT INTO sabores (nome, categoria, preco) VALUES (?,?,?)', [nome, cat, preco]);
     }
-    console.log('✅ Sabores cadastrados!');
+    console.log('✅ Sabores base cadastrados!');
   }
 
-  console.log('✅ Banco de dados pronto:', DB_PATH);
+  console.log('✅ Banco de dados Postgres pronto!');
 }
 
 module.exports = { db, inicializar };

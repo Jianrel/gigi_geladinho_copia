@@ -1,5 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('gigi_estoque.db');
+const { db } = require('./database');
 
 const receitas = [
   {
@@ -310,32 +309,39 @@ const receitas = [
 ];
 
 async function run() {
+  console.log('Iniciando importação de receitas...');
+  
   for (const r of receitas) {
-    await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM sabores WHERE nome = ?', [r.sabor], async (err, sabor) => {
-        if (!sabor) {
-          console.log(`Sabor não encontrado: ${r.sabor}`);
-          return resolve();
+    try {
+      const sabor = await db.get('SELECT id FROM sabores WHERE nome = ?', [r.sabor]);
+      if (!sabor) {
+        console.log(`Sabor não encontrado: ${r.sabor}`);
+        continue;
+      }
+
+      const sid = sabor.id;
+      await db.run('UPDATE sabores SET rendimento_receita = ? WHERE id = ?', [r.rendimento, sid]);
+      await db.run('DELETE FROM receita_ingredientes WHERE sabor_id = ?', [sid]);
+
+      for (const ing of r.ingredientes) {
+        let irow = await db.get('SELECT id FROM ingredientes WHERE nome = ?', [ing.nome]);
+        
+        // Se o ingrediente não existe, cria ele com valores padrão para não travar a receita
+        if (!irow) {
+          console.log(`Ingrediente novo detectado: ${ing.nome}. Cadastrando...`);
+          const res = await db.run('INSERT INTO ingredientes (nome, unidade, preco_unitario, volume) VALUES (?, ?, ?, ?)', [ing.nome, 'UN', 0, 1]);
+          irow = { id: res.lastID };
         }
-        const sid = sabor.id;
-        db.run('UPDATE sabores SET rendimento_receita = ? WHERE id = ?', [r.rendimento, sid]);
-        db.run('DELETE FROM receita_ingredientes WHERE sabor_id = ?', [sid], async () => {
-          for (const ing of r.ingredientes) {
-            db.get('SELECT id FROM ingredientes WHERE nome = ?', [ing.nome], (err, irow) => {
-              if (irow) {
-                db.run('INSERT INTO receita_ingredientes (sabor_id, ingrediente_id, quantidade) VALUES (?, ?, ?)', [sid, irow.id, ing.qtd]);
-              } else {
-                console.log(`Ingrediente não encontrado: ${ing.nome} (para ${r.sabor})`);
-              }
-            });
-          }
-          console.log(`Receita cadastrada: ${r.sabor}`);
-          resolve();
-        });
-      });
-    });
+
+        await db.run('INSERT INTO receita_ingredientes (sabor_id, ingrediente_id, quantidade) VALUES (?, ?, ?)', [sid, irow.id, ing.qtd]);
+      }
+      console.log(`✅ Receita cadastrada: ${r.sabor}`);
+    } catch (e) {
+      console.error(`Erro ao importar ${r.sabor}:`, e.message);
+    }
   }
-  console.log('Fim do processamento.');
+  console.log('🏁 Fim do processamento.');
+  process.exit(0);
 }
 
 run();
