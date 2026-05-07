@@ -94,7 +94,7 @@ app.post('/api/receitas/:sabor_id', wrap(async (req, res) => {
 app.get('/api/lancamentos', wrap(async (req, res) => {
   const { data, mes, ano } = req.query;
   const base = `SELECT l.*, s.nome as sabor_nome, s.categoria, s.preco,
-    (CASE WHEN l.quantidade > 0 THEN MAX(0, l.quantidade - l.voltaram) ELSE MAX(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
+    (CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
     COALESCE(l.quantidade, 0) as quantidade
     FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id`;
 
@@ -107,7 +107,7 @@ app.get('/api/lancamentos', wrap(async (req, res) => {
         l.fez, l.furou, l.voltaram,
         COALESCE(l.quantidade, 0) as quantidade,
         l.estoque_final,
-        (CASE WHEN COALESCE(l.quantidade,0) > 0 THEN MAX(0, l.quantidade - l.voltaram) ELSE MAX(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
+        (CASE WHEN COALESCE(l.quantidade,0) > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
       FROM sabores s
       LEFT JOIN lancamentos l ON l.sabor_id = s.id AND l.data = ?
       LEFT JOIN lancamentos prev ON prev.sabor_id = s.id AND prev.data = (SELECT MAX(data) FROM lancamentos WHERE sabor_id = s.id AND data < ?)
@@ -159,7 +159,7 @@ app.get('/api/stats/resumo-dia', wrap(async (req, res) => {
   const dia = req.query.data || new Date().toISOString().slice(0, 10);
   const lancamentos = await db.all(`
     SELECT l.*, s.nome as sabor_nome, s.preco, s.categoria,
-      (CASE WHEN l.quantidade > 0 THEN MAX(0, l.quantidade - l.voltaram) ELSE MAX(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
+      (CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
     FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id WHERE l.data=?`, [dia]);
   const totalVendidos = lancamentos.reduce((a,l) => a+Math.max(0,l.vendidos), 0);
   const receita = lancamentos.reduce((a,l) => a+Math.max(0,l.vendidos)*l.preco, 0);
