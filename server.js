@@ -226,7 +226,7 @@ app.get('/api/stats/resumo-mes', wrap(async (req, res) => {
       SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita
     FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
     WHERE SUBSTRING(l.data, 1, 7) = ?
-    GROUP BY l.sabor_id ORDER BY vendidos DESC`, [anoMes]);
+    GROUP BY l.sabor_id, s.nome, s.categoria ORDER BY vendidos DESC`, [anoMes]);
 
   const totais = dias.reduce((acc,d) => ({
     vendidos: acc.vendidos + Math.max(0, d.vendidos||0),
