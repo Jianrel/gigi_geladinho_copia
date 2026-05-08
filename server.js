@@ -233,7 +233,7 @@ app.get('/api/stats/resumo-mes', async (req, res) => {
           SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita
         FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
         WHERE SUBSTRING(l.data, 1, 7) = ?
-        GROUP BY l.sabor_id, s.nome, s.categoria ORDER BY vendidos DESC`, [anoMes]);
+        GROUP BY s.id ORDER BY vendidos DESC`, [anoMes]);
     } catch(e) {
       return res.status(500).json({ erro: 'query porSabor: ' + e.message });
     }
@@ -245,7 +245,7 @@ app.get('/api/stats/resumo-mes', async (req, res) => {
       perdas:   acc.perdas   + (d.perdas||0)
     }), { vendidos:0, receita:0, produzidos:0, perdas:0 });
 
-    res.json({ mes: m, ano: a, dias, porSabor, totais });
+    res.json({ mes: m, ano: a, dias, porSabor, totais, _v: 3 });
   } catch(e) {
     res.status(500).json({ erro: 'geral: ' + e.message });
   }
