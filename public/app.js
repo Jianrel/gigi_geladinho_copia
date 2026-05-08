@@ -237,7 +237,7 @@ async function renderizarTabelaLancamento(data) {
       const row = document.createElement('tr');
       row.dataset.saborId = s.id;
       row.dataset.preco = s.preco;
-      const v = val => val === 0 ? '' : (val ?? '');
+      const v = val => (val !== null && val !== undefined) ? val : '';
       row.innerHTML = `
         <td class="col-sabor">${s.nome}</td>
         <td><input type="number" class="f-inicial" min="0" value="${l.estoque_inicial ?? 0}"></td>
