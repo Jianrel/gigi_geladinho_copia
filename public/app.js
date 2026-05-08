@@ -135,11 +135,12 @@ async function carregarDashboard() {
   $('stat-receita-mes').parentElement.parentElement.style.display = isMes ? 'none' : 'flex';
 
   // Valores
+  const totaisMes = resumoMes?.totais || {};
   if (isMes) {
-    $('stat-vendidos').textContent = fmtNum(resumoMes.totais.vendidos);
-    $('stat-receita').textContent = fmt(resumoMes.totais.receita);
-    $('stat-produzidos').textContent = fmtNum(resumoMes.totais.produzidos);
-    $('stat-furou').textContent = fmtNum(resumoMes.totais.perdas);
+    $('stat-vendidos').textContent = fmtNum(totaisMes.vendidos);
+    $('stat-receita').textContent = fmt(totaisMes.receita);
+    $('stat-produzidos').textContent = fmtNum(totaisMes.produzidos);
+    $('stat-furou').textContent = fmtNum(totaisMes.perdas);
   } else {
     $('stat-vendidos').textContent = fmtNum(resumoDia.totalVendidos);
     $('stat-receita').textContent = fmt(resumoDia.receita);
@@ -153,7 +154,7 @@ async function carregarDashboard() {
 
   // Gráfico: vendas por sabor hoje ou no mês
   $('chart-sabores-dia').parentElement.previousElementSibling.textContent = isMes ? 'Top 10 mais vendidas — Mês Atual' : 'Top 10 mais vendidas — Dia Selecionado';
-  const lancsGrafico = isMes ? (resumoMes.porSabor || []) : (resumoDia.lancamentos || []);
+  const lancsGrafico = isMes ? (resumoMes?.porSabor || []) : (resumoDia?.lancamentos || []);
   const dadosGrafico = lancsGrafico.filter(l => (parseFloat(l.vendidos) || 0) > 0).sort((a, b) => (parseFloat(b.vendidos) || 0) - (parseFloat(a.vendidos) || 0)).slice(0, 10);
   
   destroyChart('chart-sabores-dia');

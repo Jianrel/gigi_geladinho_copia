@@ -176,7 +176,7 @@ app.get('/api/stats/resumo-dia', wrap(async (req, res) => {
   const lancamentos = await db.all(`
     SELECT l.*, s.nome as sabor_nome, s.preco, s.categoria,
       (CASE WHEN COALESCE(l.quantidade,0) > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos
-    FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id WHERE l.data = ?::date`, [dia]);
+    FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id WHERE l.data = ?`, [dia]);
   
   const totalVendidos = lancamentos.reduce((a,l) => a + (parseFloat(l.vendidos) || 0), 0);
   const receita = lancamentos.reduce((a,l) => a + ((parseFloat(l.vendidos) || 0) * parseFloat(l.preco)), 0);
@@ -216,7 +216,7 @@ app.get('/api/stats/resumo-mes', wrap(async (req, res) => {
       SUM(l.fez) as produzidos, SUM(l.furou) as perdas
     FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
     WHERE EXTRACT(MONTH FROM l.data::date)=? AND EXTRACT(YEAR FROM l.data::date)=?
-    GROUP BY l.data ORDER BY l.data`, [m, a]);
+    GROUP BY l.data ORDER BY l.data`, [parseInt(m), parseInt(a)]);
 
   const porSabor = await db.all(`
     SELECT s.nome, s.categoria,
@@ -224,7 +224,7 @@ app.get('/api/stats/resumo-mes', wrap(async (req, res) => {
       SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita
     FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
     WHERE EXTRACT(MONTH FROM l.data::date)=? AND EXTRACT(YEAR FROM l.data::date)=?
-    GROUP BY l.sabor_id ORDER BY vendidos DESC`, [m, a]);
+    GROUP BY l.sabor_id ORDER BY vendidos DESC`, [parseInt(m), parseInt(a)]);
 
   const totais = dias.reduce((acc,d) => ({
     vendidos: acc.vendidos + Math.max(0, d.vendidos||0),
