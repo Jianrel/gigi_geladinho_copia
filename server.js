@@ -204,39 +204,52 @@ app.get('/api/stats/resumo-dia', wrap(async (req, res) => {
   });
 }));
 
-app.get('/api/stats/resumo-mes', wrap(async (req, res) => {
-  const agora = new Date();
-  const m = String(req.query.mes || agora.getMonth()+1).padStart(2,'0');
-  const a = String(req.query.ano || agora.getFullYear());
+app.get('/api/stats/resumo-mes', async (req, res) => {
+  try {
+    const agora = new Date();
+    const m = String(req.query.mes || agora.getMonth()+1).padStart(2,'0');
+    const a = String(req.query.ano || agora.getFullYear());
+    const anoMes = `${a}-${m}`;
 
-  const anoMes = `${a}-${m}`;
+    let dias;
+    try {
+      dias = await db.all(`
+        SELECT l.data,
+          SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
+          SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita,
+          SUM(l.fez) as produzidos, SUM(l.furou) as perdas
+        FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
+        WHERE SUBSTRING(l.data, 1, 7) = ?
+        GROUP BY l.data ORDER BY l.data`, [anoMes]);
+    } catch(e) {
+      return res.status(500).json({ erro: 'query dias: ' + e.message });
+    }
 
-  const dias = await db.all(`
-    SELECT l.data,
-      SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
-      SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita,
-      SUM(l.fez) as produzidos, SUM(l.furou) as perdas
-    FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
-    WHERE SUBSTRING(l.data, 1, 7) = ?
-    GROUP BY l.data ORDER BY l.data`, [anoMes]);
+    let porSabor;
+    try {
+      porSabor = await db.all(`
+        SELECT s.nome, s.categoria,
+          SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
+          SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita
+        FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
+        WHERE SUBSTRING(l.data, 1, 7) = ?
+        GROUP BY l.sabor_id, s.nome, s.categoria ORDER BY vendidos DESC`, [anoMes]);
+    } catch(e) {
+      return res.status(500).json({ erro: 'query porSabor: ' + e.message });
+    }
 
-  const porSabor = await db.all(`
-    SELECT s.nome, s.categoria,
-      SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
-      SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita
-    FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
-    WHERE SUBSTRING(l.data, 1, 7) = ?
-    GROUP BY l.sabor_id, s.nome, s.categoria ORDER BY vendidos DESC`, [anoMes]);
+    const totais = dias.reduce((acc,d) => ({
+      vendidos: acc.vendidos + Math.max(0, d.vendidos||0),
+      receita:  acc.receita  + Math.max(0, d.receita||0),
+      produzidos: acc.produzidos + (d.produzidos||0),
+      perdas:   acc.perdas   + (d.perdas||0)
+    }), { vendidos:0, receita:0, produzidos:0, perdas:0 });
 
-  const totais = dias.reduce((acc,d) => ({
-    vendidos: acc.vendidos + Math.max(0, d.vendidos||0),
-    receita:  acc.receita  + Math.max(0, d.receita||0),
-    produzidos: acc.produzidos + (d.produzidos||0),
-    perdas:   acc.perdas   + (d.perdas||0)
-  }), { vendidos:0, receita:0, produzidos:0, perdas:0 });
-
-  res.json({ mes: m, ano: a, dias, porSabor, totais });
-}));
+    res.json({ mes: m, ano: a, dias, porSabor, totais });
+  } catch(e) {
+    res.status(500).json({ erro: 'geral: ' + e.message });
+  }
+});
 
 app.get('/api/stats/estoque-atual', wrap(async (req, res) => {
   res.json(await db.all(`
