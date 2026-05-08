@@ -252,12 +252,12 @@ app.get('/api/stats/estoque-atual', wrap(async (req, res) => {
 
 app.get('/api/stats/evolucao-mensal', wrap(async (req, res) => {
   res.json(await db.all(`
-    SELECT strftime('%Y-%m',l.data) as mes,
-      SUM(CASE WHEN l.quantidade > 0 THEN MAX(0, l.quantidade - l.voltaram) ELSE MAX(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
-      SUM((CASE WHEN l.quantidade > 0 THEN MAX(0, l.quantidade - l.voltaram) ELSE MAX(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita,
+    SELECT TO_CHAR(l.data::date, 'YYYY-MM') as mes,
+      SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
+      SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END)*s.preco) as receita,
       SUM(l.fez) as produzidos
     FROM lancamentos l JOIN sabores s ON l.sabor_id=s.id
-    GROUP BY mes ORDER BY mes`));
+    GROUP BY TO_CHAR(l.data::date, 'YYYY-MM') ORDER BY mes`));
 }));
 
 // ─── GASTOS ──────────────────────────────────

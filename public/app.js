@@ -108,10 +108,15 @@ async function carregarDashboard() {
   const isMes = !dataEl.value;
   const dtRef = dataEl.value || 'undefined';
 
-  const [resumoDia, evolucao, estoqueAtual] = await Promise.all([
+  const refDate = dataEl.value ? new Date(dataEl.value + 'T12:00:00') : new Date();
+  const mes = String(refDate.getMonth() + 1);
+  const ano = String(refDate.getFullYear());
+
+  const [resumoDia, evolucao, estoqueAtual, resumoMes] = await Promise.all([
     api(`/api/stats/resumo-dia?data=${dtRef}`),
     api('/api/stats/evolucao-mensal'),
-    api('/api/stats/estoque-atual')
+    api('/api/stats/estoque-atual'),
+    api(`/api/stats/resumo-mes?mes=${mes}&ano=${ano}`)
   ]);
 
   // Se o servidor sugeriu uma data diferente (último lançamento), atualiza dtRef
