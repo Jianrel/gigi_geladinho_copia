@@ -239,10 +239,10 @@ app.get('/api/stats/resumo-mes', async (req, res) => {
     }
 
     const totais = dias.reduce((acc,d) => ({
-      vendidos: acc.vendidos + Math.max(0, d.vendidos||0),
-      receita:  acc.receita  + Math.max(0, d.receita||0),
-      produzidos: acc.produzidos + (d.produzidos||0),
-      perdas:   acc.perdas   + (d.perdas||0)
+      vendidos:   acc.vendidos   + Math.max(0, Number(d.vendidos)  || 0),
+      receita:    acc.receita    + Math.max(0, Number(d.receita)   || 0),
+      produzidos: acc.produzidos + Math.max(0, Number(d.produzidos)|| 0),
+      perdas:     acc.perdas     + Math.max(0, Number(d.perdas)    || 0)
     }), { vendidos:0, receita:0, produzidos:0, perdas:0 });
 
     res.json({ mes: m, ano: a, dias, porSabor, totais, _v: 3 });
