@@ -181,14 +181,14 @@ async function carregarDashboard() {
 
   // Gráfico: receita diária do mês
   destroyChart('chart-receita-mes');
-  if (resumoMes.dias.length) {
+  if ((resumoMes?.dias || []).length) {
     state.charts['chart-receita-mes'] = new Chart($('chart-receita-mes'), {
       type: 'line',
       data: {
-        labels: resumoMes.dias.map(d => d.data.slice(8)),
+        labels: (resumoMes.dias || []).map(d => d.data.slice(8)),
         datasets: [{
           label: 'Receita (R$)',
-          data: resumoMes.dias.map(d => Math.max(0, d.receita)),
+          data: (resumoMes.dias || []).map(d => Math.max(0, d.receita)),
           borderColor: '#5BB894', backgroundColor: 'rgba(91,184,148,0.15)',
           fill: true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6
         }]
