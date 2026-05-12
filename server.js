@@ -139,13 +139,25 @@ app.post('/api/lancamentos', wrap(async (req, res) => {
   let ok = 0, erros = 0;
   for (const item of items) {
     try {
+      const estoque_inicial = item.estoque_inicial || 0;
+      const fez = item.fez || 0;
+      const furou = item.furou || 0;
+      const voltaram = item.voltaram ?? 0;
+      const quantidade = item.quantidade ?? 0;
+      // Calcular estoque_final automaticamente se não fornecido ou for 0 mas outros campos têm valor
+      let estoque_final = item.estoque_final;
+      if (estoque_final === undefined || estoque_final === null || estoque_final === '') {
+        estoque_final = Math.max(0, estoque_inicial + fez - furou - voltaram);
+      } else {
+        estoque_final = parseInt(estoque_final) || 0;
+      }
       await db.run(`INSERT INTO lancamentos (data,sabor_id,estoque_inicial,fez,furou,voltaram,estoque_final,quantidade)
         VALUES (?,?,?,?,?,?,?,?)
         ON CONFLICT(data,sabor_id) DO UPDATE SET
           estoque_inicial=excluded.estoque_inicial, fez=excluded.fez,
           furou=excluded.furou, voltaram=excluded.voltaram,
           estoque_final=excluded.estoque_final, quantidade=excluded.quantidade`,
-        [item.data, item.sabor_id, item.estoque_inicial || 0, item.fez || 0, item.furou || 0, item.voltaram ?? 0, item.estoque_final || 0, item.quantidade ?? 0]);
+        [item.data, item.sabor_id, estoque_inicial, fez, furou, voltaram, estoque_final, quantidade]);
       ok++;
     } catch (e) { 
       console.error('Erro ao salvar item:', e);
@@ -280,7 +292,10 @@ app.get('/api/gastos', wrap(async (req, res) => {
   const { mes, ano } = req.query;
   let sql = 'SELECT g.*, s.nome as sabor_nome FROM gastos_producao g LEFT JOIN sabores s ON g.sabor_id=s.id';
   const p = [];
-  if (mes && ano) { sql += " WHERE strftime('%m',g.data)=? AND strftime('%Y',g.data)=?"; p.push(String(mes).padStart(2,'0'), String(ano)); }
+  if (mes && ano) { 
+    sql += " WHERE EXTRACT(MONTH FROM g.data::date) = ? AND EXTRACT(YEAR FROM g.data::date) = ?"; 
+    p.push(parseInt(mes), parseInt(ano)); 
+  }
   sql += ' ORDER BY g.data DESC';
   res.json(await db.all(sql, p));
 }));

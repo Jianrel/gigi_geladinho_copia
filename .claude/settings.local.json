@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\GAUST\\\\OneDrive\\\\Documentos\\\\gigi geladinhos\" -Recurse -File -Name)",
+      "Bash(Select-Object -First 50)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\GAUST\\\\OneDrive\\\\Documentos\\\\gigi geladinhos\" -Recurse -File | Select-Object -First 30 | ForEach-Object { $_.FullName })"
+    ]
+  }
+}
