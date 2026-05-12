@@ -500,7 +500,7 @@ async function gerarRelatorio() {
 
   // Gráfico categorias
   const catData = { fruta: 0, doce_especial: 0, zero_lactose: 0 };
-  (dados.porSabor || []).forEach(s => { catData[s.categoria] = (catData[s.categoria] || 0) + (s.vendidos || 0); });
+  (dados.porSabor || []).forEach(s => { catData[s.categoria] = (catData[s.categoria] || 0) + (Number(s.vendidos) || 0); });
   destroyChart('chart-rel-categoria');
   state.charts['chart-rel-categoria'] = new Chart($('chart-rel-categoria'), {
     type: 'doughnut',
@@ -508,7 +508,20 @@ async function gerarRelatorio() {
       labels: ['Frutas', 'Doces Especiais', 'Zero Lactose'],
       datasets: [{ data: [catData.fruta, catData.doce_especial, catData.zero_lactose], backgroundColor: ['#5BB894','#F5C518','#2DB8C8'], borderWidth: 0 }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 } } } }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        datalabels: {
+          color: '#fff', font: { weight: 'bold', size: 13 },
+          formatter: (value, ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            if (!total || !value) return '';
+            return Math.round(value / total * 100) + '%\n(' + value + ' un.)';
+          }
+        }
+      }
+    }
   });
 
   // Gráfico ranking
@@ -535,8 +548,8 @@ async function gerarRelatorio() {
       data: {
         labels: evolucao.map(e => { const [a,m] = e.mes.split('-'); return meses[parseInt(m)-1]+'/'+a.slice(2); }),
         datasets: [
-          { label: 'Receita R$', data: evolucao.map(e => Math.max(0, parseFloat(e.receita_total || 0))), borderColor:'#5BB894', backgroundColor:'rgba(91,184,148,0.1)', fill:true, tension:0.4, yAxisID:'y' },
-          { label: 'Vendidos', data: evolucao.map(e => Math.max(0, parseFloat(e.vendidos_total || 0))), borderColor:'#1B3A6B', backgroundColor:'rgba(27,58,107,0.1)', fill:false, tension:0.4, yAxisID:'y1' }
+          { label: 'Receita R$', data: evolucao.map(e => Math.max(0, parseFloat(e.receita || 0))), borderColor:'#5BB894', backgroundColor:'rgba(91,184,148,0.1)', fill:true, tension:0.4, yAxisID:'y' },
+          { label: 'Vendidos', data: evolucao.map(e => Math.max(0, Number(e.vendidos) || 0)), borderColor:'#1B3A6B', backgroundColor:'rgba(27,58,107,0.1)', fill:false, tension:0.4, yAxisID:'y1' }
         ]
       },
       options: { responsive:true, maintainAspectRatio:false, plugins: { datalabels: { display: false } }, scales: { y:{beginAtZero:true,position:'left'}, y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}} } }
