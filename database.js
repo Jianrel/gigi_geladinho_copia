@@ -102,6 +102,13 @@ async function inicializar() {
       quantidade REAL NOT NULL DEFAULT 0,
       UNIQUE(sabor_id, ingrediente_id)
     );
+
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL UNIQUE,
+      senha_hash TEXT NOT NULL,
+      deve_trocar_senha BOOLEAN NOT NULL DEFAULT TRUE
+    );
   `);
 
   const row = await db.get('SELECT COUNT(*) as c FROM sabores');

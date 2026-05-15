@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { db, inicializar } = require('./database');
 
 const app = express();
@@ -20,6 +21,68 @@ function getIPLocal() {
 }
 
 const wrap = fn => (req, res) => fn(req, res).catch(err => res.status(500).json({ erro: err.message }));
+
+// ─── AUTH ─────────────────────────────────────
+function hashSenha(senha, salt) {
+  if (!salt) salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(senha, salt, 10000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verificarSenha(senha, senhaHash) {
+  const [salt] = senhaHash.split(':');
+  return hashSenha(senha, salt) === senhaHash;
+}
+
+const sessions = new Map();
+
+function auth(req, res, next) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  if (!token || !sessions.has(token)) return res.status(401).json({ erro: 'Não autenticado' });
+  req.usuario = sessions.get(token);
+  next();
+}
+
+async function seedUsuarios() {
+  const count = await db.get('SELECT COUNT(*) as c FROM usuarios');
+  if (parseInt(count.c) === 0) {
+    for (const nome of ['Jailson', 'Gilberto', 'Carmen']) {
+      await db.run('INSERT INTO usuarios (nome, senha_hash, deve_trocar_senha) VALUES (?,?,?)',
+        [nome, hashSenha('12345678'), true]);
+    }
+    console.log('✅ Usuários padrão criados!');
+  }
+}
+
+// ─── ROTAS PÚBLICAS (sem autenticação) ────────
+app.post('/api/login', wrap(async (req, res) => {
+  const { nome, senha } = req.body;
+  if (!nome || !senha) return res.status(400).json({ erro: 'Preencha usuário e senha' });
+  const usuario = await db.get('SELECT * FROM usuarios WHERE LOWER(nome) = LOWER(?)', [nome.trim()]);
+  if (!usuario || !verificarSenha(senha, usuario.senha_hash))
+    return res.status(401).json({ erro: 'Usuário ou senha incorretos' });
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { id: usuario.id, nome: usuario.nome });
+  res.json({ token, nome: usuario.nome, deve_trocar_senha: usuario.deve_trocar_senha });
+}));
+
+app.post('/api/alterar-senha', auth, wrap(async (req, res) => {
+  const { nova_senha } = req.body;
+  if (!nova_senha || nova_senha.length < 6)
+    return res.status(400).json({ erro: 'Senha deve ter no mínimo 6 caracteres' });
+  await db.run('UPDATE usuarios SET senha_hash=?, deve_trocar_senha=FALSE WHERE id=?',
+    [hashSenha(nova_senha), req.usuario.id]);
+  res.json({ ok: true });
+}));
+
+app.post('/api/logout', auth, (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  sessions.delete(token);
+  res.json({ ok: true });
+});
+
+// ─── MIDDLEWARE AUTH (protege todas as rotas abaixo) ──
+app.use('/api', auth);
 
 // ─── SABORES ─────────────────────────────────
 app.get('/api/sabores', wrap(async (req, res) => {
@@ -405,7 +468,8 @@ app.post('/api/importar', wrap(async (req, res) => {
 // ─── EXPORTAR PARA VERCEL ─────────────────────────
 // Em ambiente local, você ainda pode rodar com 'node server.js'
 if (require.main === module) {
-  inicializar().then(() => {
+  inicializar().then(async () => {
+    await seedUsuarios();
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Servidor local rodando em http://localhost:${PORT}`);
     });

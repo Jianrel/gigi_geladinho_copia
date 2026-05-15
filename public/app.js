@@ -36,11 +36,21 @@ const hoje = () => {
 };
 
 async function api(path, opts = {}) {
+  const token = localStorage.getItem('gigi_token');
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined
   });
+  if (res.status === 401) {
+    localStorage.removeItem('gigi_token');
+    localStorage.removeItem('gigi_usuario');
+    $('login-overlay').style.display = 'flex';
+    return null;
+  }
   return res.json();
 }
 
@@ -1034,8 +1044,127 @@ document.querySelectorAll('.modal').forEach(modal => {
   modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
 });
 
+// ─── AUTH ─────────────────────────────────────
+async function fazerLogin() {
+  const nome = $('login-nome').value.trim();
+  const senha = $('login-senha').value;
+  const erroEl = $('login-erro');
+  erroEl.style.display = 'none';
+  if (!nome || !senha) {
+    erroEl.textContent = 'Preencha usuário e senha.';
+    erroEl.style.display = 'block';
+    return;
+  }
+  const btn = $('btn-login');
+  btn.textContent = 'Entrando...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, senha })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      erroEl.textContent = data.erro || 'Erro ao entrar.';
+      erroEl.style.display = 'block';
+      return;
+    }
+    localStorage.setItem('gigi_token', data.token);
+    localStorage.setItem('gigi_usuario', data.nome);
+    $('sidebar-username').textContent = data.nome;
+    if (data.deve_trocar_senha) {
+      $('modal-alterar-senha').classList.add('open');
+    } else {
+      $('login-overlay').style.display = 'none';
+      await iniciarApp();
+    }
+  } catch {
+    erroEl.textContent = 'Erro de conexão. Tente novamente.';
+    erroEl.style.display = 'block';
+  } finally {
+    btn.textContent = 'Entrar';
+    btn.disabled = false;
+  }
+}
+
+async function confirmarNovaSenha() {
+  const nova = $('nova-senha').value;
+  const confirmar = $('confirmar-senha').value;
+  const erroEl = $('senha-erro');
+  erroEl.style.display = 'none';
+  if (nova.length < 6) {
+    erroEl.textContent = 'Senha deve ter no mínimo 6 caracteres.';
+    erroEl.style.display = 'block';
+    return;
+  }
+  if (nova !== confirmar) {
+    erroEl.textContent = 'As senhas não coincidem.';
+    erroEl.style.display = 'block';
+    return;
+  }
+  const btn = $('btn-confirmar-senha');
+  btn.textContent = 'Salvando...';
+  btn.disabled = true;
+  try {
+    const res = await api('/api/alterar-senha', { method: 'POST', body: { nova_senha: nova } });
+    if (res?.ok) {
+      $('modal-alterar-senha').classList.remove('open');
+      $('login-overlay').style.display = 'none';
+      await iniciarApp();
+    }
+  } catch {
+    erroEl.textContent = 'Erro ao salvar senha.';
+    erroEl.style.display = 'block';
+  } finally {
+    btn.textContent = '💾 Salvar e Entrar';
+    btn.disabled = false;
+  }
+}
+
+async function fazerLogout() {
+  const token = localStorage.getItem('gigi_token');
+  if (token) {
+    fetch('/api/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
+  }
+  localStorage.removeItem('gigi_token');
+  localStorage.removeItem('gigi_usuario');
+  Object.keys(state.charts).forEach(k => { state.charts[k]?.destroy(); });
+  state.charts = {};
+  state.sabores = [];
+  $('login-nome').value = '';
+  $('login-senha').value = '';
+  $('login-erro').style.display = 'none';
+  $('sidebar-username').textContent = '';
+  $('login-overlay').style.display = 'flex';
+}
+
+$('btn-login').addEventListener('click', fazerLogin);
+$('login-nome').addEventListener('keydown', e => { if (e.key === 'Enter') $('login-senha').focus(); });
+$('login-senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });
+$('btn-confirmar-senha').addEventListener('click', confirmarNovaSenha);
+$('confirmar-senha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
+$('btn-logout').addEventListener('click', fazerLogout);
+
 // ─── INICIALIZAÇÃO ────────────────────────────
-(async function init() {
+async function iniciarApp() {
   state.sabores = await api('/api/sabores');
+  carregarDashboard();
+}
+
+(async function init() {
+  const token = localStorage.getItem('gigi_token');
+  if (!token) { $('login-overlay').style.display = 'flex'; return; }
+  // Valida token existente
+  const res = await fetch('/api/sabores', { headers: { 'Authorization': `Bearer ${token}` } });
+  if (res.status === 401) {
+    localStorage.removeItem('gigi_token');
+    localStorage.removeItem('gigi_usuario');
+    $('login-overlay').style.display = 'flex';
+    return;
+  }
+  state.sabores = await res.json();
+  $('sidebar-username').textContent = localStorage.getItem('gigi_usuario') || '';
+  $('login-overlay').style.display = 'none';
   carregarDashboard();
 })();
