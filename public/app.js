@@ -494,7 +494,18 @@ async function gerarRelatorio() {
         labels: dados.dias.map(d => d.data.slice(8) + '/' + d.data.slice(5,7)),
         datasets: [{ label: 'Receita R$', data: dados.dias.map(d => Math.max(0,d.receita)), backgroundColor: '#5BB894', borderRadius: 5 }]
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { formatter: (v) => v > 0 ? 'R$ ' + v : '' } }, scales: { y: { beginAtZero: true } } }
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 32 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end', align: 'top',
+            formatter: (v) => v > 0 ? 'R$' + Number(v).toFixed(0) : ''
+          }
+        },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$' + v } } }
+      }
     });
   }
 
@@ -513,6 +524,7 @@ async function gerarRelatorio() {
       plugins: {
         legend: { position: 'bottom' },
         datalabels: {
+          anchor: 'center', align: 'center',
           color: '#fff', font: { weight: 'bold', size: 13 },
           formatter: (value, ctx) => {
             const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
@@ -548,11 +560,27 @@ async function gerarRelatorio() {
       data: {
         labels: evolucao.map(e => { const [a,m] = e.mes.split('-'); return meses[parseInt(m)-1]+'/'+a.slice(2); }),
         datasets: [
-          { label: 'Receita R$', data: evolucao.map(e => Math.max(0, parseFloat(e.receita || 0))), borderColor:'#5BB894', backgroundColor:'rgba(91,184,148,0.1)', fill:true, tension:0.4, yAxisID:'y' },
-          { label: 'Vendidos', data: evolucao.map(e => Math.max(0, Number(e.vendidos) || 0)), borderColor:'#1B3A6B', backgroundColor:'rgba(27,58,107,0.1)', fill:false, tension:0.4, yAxisID:'y1' }
+          { label: 'Receita R$', data: evolucao.map(e => Math.max(0, parseFloat(e.receita || 0))), borderColor:'#5BB894', backgroundColor:'rgba(91,184,148,0.1)', fill:true, tension:0.4, yAxisID:'y', pointRadius:5, pointHoverRadius:7 },
+          { label: 'Vendidos', data: evolucao.map(e => Math.max(0, Number(e.vendidos) || 0)), borderColor:'#1B3A6B', backgroundColor:'rgba(27,58,107,0.1)', fill:false, tension:0.4, yAxisID:'y1', pointRadius:5, pointHoverRadius:7 }
         ]
       },
-      options: { responsive:true, maintainAspectRatio:false, plugins: { datalabels: { display: false } }, scales: { y:{beginAtZero:true,position:'left'}, y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}} } }
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          datalabels: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ctx.dataset.yAxisID === 'y'
+                ? ' Receita: ' + fmt(ctx.parsed.y)
+                : ' Vendidos: ' + ctx.parsed.y
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero:true, position:'left', ticks: { callback: v => 'R$' + Number(v).toFixed(0) } },
+          y1: { beginAtZero:true, position:'right', grid:{ drawOnChartArea:false }, ticks: { stepSize:1 } }
+        }
+      }
     });
   }
 
