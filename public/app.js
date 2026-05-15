@@ -953,9 +953,9 @@ $('btn-salvar-producao').addEventListener('click', async () => {
   const qtd = Math.round(state.receitaRendimento * mult);
   const sabor_nome = $('receita-sabor-select').options[$('receita-sabor-select').selectedIndex].text;
   
-  await api('/api/gastos', { 
-    method: 'POST', 
-    body: { data, sabor_id, descricao: `Produção: ${sabor_nome} (${mult}x)`, valor, geladinhos_produzidos: qtd } 
+  await api('/api/producao', {
+    method: 'POST',
+    body: { data, sabor_id, descricao: `Produção: ${sabor_nome} (${mult}x)`, valor, geladinhos_produzidos: qtd }
   });
   
   $('modal-producao').classList.remove('open');
