@@ -23,6 +23,8 @@ function getIPLocal() {
 const wrap = fn => (req, res) => fn(req, res).catch(err => res.status(500).json({ erro: err.message }));
 
 // ─── AUTH ─────────────────────────────────────
+const JWT_SECRET = process.env.JWT_SECRET || 'gigi-geladinho-2024';
+
 function hashSenha(senha, salt) {
   if (!salt) salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(senha, salt, 10000, 64, 'sha512').toString('hex');
@@ -34,12 +36,29 @@ function verificarSenha(senha, senhaHash) {
   return hashSenha(senha, salt) === senhaHash;
 }
 
-const sessions = new Map();
+function criarToken(id, nome) {
+  const payload = Buffer.from(`${id}|${nome}|${Date.now()}`).toString('base64url');
+  const sig = crypto.createHmac('sha256', JWT_SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+function verificarToken(token) {
+  try {
+    const lastDot = token.lastIndexOf('.');
+    const payload = token.substring(0, lastDot);
+    const sig = token.substring(lastDot + 1);
+    const expected = crypto.createHmac('sha256', JWT_SECRET).update(payload).digest('hex');
+    if (sig !== expected) return null;
+    const [id, nome] = Buffer.from(payload, 'base64url').toString().split('|');
+    return { id: parseInt(id), nome };
+  } catch { return null; }
+}
 
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
-  if (!token || !sessions.has(token)) return res.status(401).json({ erro: 'Não autenticado' });
-  req.usuario = sessions.get(token);
+  const usuario = token ? verificarToken(token) : null;
+  if (!usuario) return res.status(401).json({ erro: 'Não autenticado' });
+  req.usuario = usuario;
   next();
 }
 
@@ -61,8 +80,7 @@ app.post('/api/login', wrap(async (req, res) => {
   const usuario = await db.get('SELECT * FROM usuarios WHERE LOWER(nome) = LOWER(?)', [nome.trim()]);
   if (!usuario || !verificarSenha(senha, usuario.senha_hash))
     return res.status(401).json({ erro: 'Usuário ou senha incorretos' });
-  const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, { id: usuario.id, nome: usuario.nome });
+  const token = criarToken(usuario.id, usuario.nome);
   res.json({ token, nome: usuario.nome, deve_trocar_senha: usuario.deve_trocar_senha });
 }));
 
@@ -75,10 +93,8 @@ app.post('/api/alterar-senha', auth, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.post('/api/logout', auth, (req, res) => {
-  const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
-  sessions.delete(token);
-  res.json({ ok: true });
+app.post('/api/logout', (req, res) => {
+  res.json({ ok: true }); // token é stateless, logout só limpa o cliente
 });
 
 // ─── MIDDLEWARE AUTH (protege todas as rotas abaixo) ──
