@@ -792,6 +792,9 @@ body {
 .badge-on  { background: var(--verde-light); color: var(--verde-dark); }
 .badge-off { background: var(--coral-light); color: var(--coral); }
 
+/* ─── MODAL ALTERAR SENHA (acima do overlay de login) ── */
+#modal-alterar-senha { z-index: 10001; }
+
 /* ─── LOGIN OVERLAY ──────────────────────────── */
 #login-overlay {
   position: fixed;
