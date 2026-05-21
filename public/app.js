@@ -638,18 +638,24 @@ async function renderizarGastos() {
   const tbody = $('gastos-tbody');
   tbody.innerHTML = '';
   if (!gastos.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><span class="emoji">📭</span><p>Nenhum gasto registrado neste mês.</p></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><span class="emoji">📭</span><p>Nenhum gasto registrado neste mês.</p></td></tr>';
     return;
   }
   gastos.forEach(g => {
     const [a,m,d] = g.data.split('-');
+    const qtd = g.geladinhos_produzidos || 0;
+    const bruto = qtd * (g.sabor_preco || 0);
+    const lucroLinha = bruto - g.valor;
+    const lucroColor = lucroLinha >= 0 ? 'text-green' : 'text-red';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${d}/${m}/${a}</td>
       <td>${g.sabor_nome || '—'}</td>
       <td>${g.descricao || '—'}</td>
+      <td>${qtd}</td>
       <td class="fw-bold text-red">${fmt(g.valor)}</td>
-      <td>${g.geladinhos_produzidos || 0}</td>
+      <td class="fw-bold">${bruto > 0 ? fmt(bruto) : '—'}</td>
+      <td class="fw-bold ${lucroColor}">${bruto > 0 ? fmt(lucroLinha) : '—'}</td>
       <td><button class="btn btn-danger" onclick="deletarGasto(${g.id})">🗑</button></td>
     `;
     tbody.appendChild(tr);
