@@ -622,12 +622,9 @@ async function carregarGastos() {
 async function renderizarGastos() {
   const mes = $('gastos-mes').value;
   const ano = $('gastos-ano').value;
-  const [gastos, lancamentos] = await Promise.all([
-    api(`/api/gastos?mes=${mes}&ano=${ano}`),
-    api(`/api/lancamentos?mes=${mes}&ano=${ano}`)
-  ]);
+  const gastos = await api(`/api/gastos?mes=${mes}&ano=${ano}`);
   const total = gastos.reduce((a, g) => a + g.valor, 0);
-  const receita = lancamentos.reduce((a, l) => a + (l.vendidos || 0) * (l.preco || 0), 0);
+  const receita = gastos.reduce((a, g) => a + (g.geladinhos_produzidos || 0) * (g.sabor_preco || 0), 0);
   const lucro = receita - total;
   const lucroClass = lucro >= 0 ? 'card-green' : 'card-red';
   const lucroIcon = lucro >= 0 ? '📈' : '📉';

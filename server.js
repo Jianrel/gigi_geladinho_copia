@@ -409,7 +409,7 @@ app.post('/api/producao', wrap(async (req, res) => {
 // ─── GASTOS ──────────────────────────────────
 app.get('/api/gastos', wrap(async (req, res) => {
   const { mes, ano } = req.query;
-  let sql = 'SELECT g.*, s.nome as sabor_nome FROM gastos_producao g LEFT JOIN sabores s ON g.sabor_id=s.id';
+  let sql = 'SELECT g.*, s.nome as sabor_nome, s.preco as sabor_preco FROM gastos_producao g LEFT JOIN sabores s ON g.sabor_id=s.id';
   const p = [];
   if (mes && ano) { 
     sql += " WHERE EXTRACT(MONTH FROM g.data::date) = ? AND EXTRACT(YEAR FROM g.data::date) = ?"; 
