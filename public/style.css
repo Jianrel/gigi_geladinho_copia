@@ -829,10 +829,12 @@ body {
 .login-logo img {
   width: 140px;
   height: 140px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 50%;
   margin-bottom: 0.5rem;
   border: 4px solid var(--verde);
+  background: #fff;
+  padding: 6px;
 }
 
 .login-titulo {
