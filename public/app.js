@@ -1158,6 +1158,30 @@ $('btn-confirmar-senha').addEventListener('click', confirmarNovaSenha);
 $('confirmar-senha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 $('btn-logout').addEventListener('click', fazerLogout);
 
+// ─── CATEGORIAS FLUXO ────────────────────────
+const CATS_BASE = ['Vendas','Nubank','Mercado Pago','Combustível','Supermercado','Energia','Água','Internet','Produção','Outros'];
+
+function getCategorias() {
+  const extras = JSON.parse(localStorage.getItem('fluxo_categorias') || '[]');
+  return [...CATS_BASE, ...extras.filter(c => !CATS_BASE.includes(c))];
+}
+
+function salvarCategoriaNova(nome) {
+  const extras = JSON.parse(localStorage.getItem('fluxo_categorias') || '[]');
+  if (!extras.includes(nome)) { extras.push(nome); localStorage.setItem('fluxo_categorias', JSON.stringify(extras)); }
+}
+
+function popularSelectCategorias(selectId, comTodas = false) {
+  const sel = $(selectId);
+  const atual = sel.value;
+  sel.innerHTML = '';
+  if (comTodas) sel.innerHTML += '<option value="">Todas</option>';
+  else sel.innerHTML += '<option value="">— Selecione —</option>';
+  getCategorias().forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
+  sel.innerHTML += '<option value="__nova__">+ Nova categoria...</option>';
+  if (atual) sel.value = atual;
+}
+
 // ─── FLUXO DE CAIXA ──────────────────────────
 const CATEGORIA_BADGE = {
   'Vendas':       'badge-vendas',
@@ -1183,6 +1207,7 @@ let fluxoRegistros = [];
 async function carregarFluxo() {
   popularAnosSelect('fluxo-ano');
   inicializarMesAtual('fluxo-mes');
+  popularSelectCategorias('fluxo-filtro-cat', true);
   await buscarFluxo();
 }
 
@@ -1286,10 +1311,33 @@ async function salvarAvulso() {
 $('btn-novo-avulso').addEventListener('click', () => {
   $('avulso-data').value = hoje();
   $('avulso-tipo').value = 'entrada';
-  $('avulso-categoria').value = '';
   $('avulso-descricao').value = '';
   $('avulso-valor').value = '';
+  $('avulso-nova-cat-wrap').style.display = 'none';
+  popularSelectCategorias('avulso-categoria');
   $('modal-avulso').classList.add('open');
+});
+
+$('avulso-categoria').addEventListener('change', () => {
+  const wrap = $('avulso-nova-cat-wrap');
+  if ($('avulso-categoria').value === '__nova__') {
+    wrap.style.display = 'block';
+    $('avulso-nova-cat-input').focus();
+  } else {
+    wrap.style.display = 'none';
+  }
+});
+
+$('btn-confirmar-nova-cat').addEventListener('click', () => {
+  const nome = $('avulso-nova-cat-input').value.trim();
+  if (!nome) return toast('Digite o nome da categoria!', 'error');
+  salvarCategoriaNova(nome);
+  popularSelectCategorias('avulso-categoria');
+  popularSelectCategorias('fluxo-filtro-cat', true);
+  $('avulso-categoria').value = nome;
+  $('avulso-nova-cat-wrap').style.display = 'none';
+  $('avulso-nova-cat-input').value = '';
+  toast(`Categoria "${nome}" criada!`);
 });
 $('modal-avulso-close').addEventListener('click', () => $('modal-avulso').classList.remove('open'));
 $('btn-salvar-avulso').addEventListener('click', salvarAvulso);

@@ -805,18 +805,11 @@
         </div>
         <div class="form-group">
           <label>Categoria</label>
-          <select id="avulso-categoria" class="input-select">
-            <option value="">— Selecione —</option>
-            <option value="Vendas">Vendas</option>
-            <option value="Nubank">Nubank</option>
-            <option value="Mercado Pago">Mercado Pago</option>
-            <option value="Combustível">Combustível</option>
-            <option value="Supermercado">Supermercado</option>
-            <option value="Energia">Energia</option>
-            <option value="Água">Água</option>
-            <option value="Internet">Internet</option>
-            <option value="Outros">Outros</option>
-          </select>
+          <select id="avulso-categoria" class="input-select"></select>
+          <div id="avulso-nova-cat-wrap" style="display:none;margin-top:0.5rem;display:none;">
+            <input type="text" id="avulso-nova-cat-input" class="input-field" placeholder="Nome da nova categoria">
+            <button class="btn btn-success" id="btn-confirmar-nova-cat" style="margin-top:0.4rem;width:100%;">Confirmar categoria</button>
+          </div>
         </div>
         <div class="form-group">
           <label>Descrição</label>
