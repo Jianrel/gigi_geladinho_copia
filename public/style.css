@@ -879,7 +879,7 @@ body {
 .login-divider::after  { right: 0; }
 
 .btn-pedido {
-  background: linear-gradient(135deg, #7dd3b0, #5BB894);
+  background: var(--verde);
   color: #fff;
   font-weight: 800;
   border: none;
