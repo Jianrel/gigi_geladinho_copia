@@ -88,7 +88,8 @@ function navegar(pagina) {
     estoque: carregarEstoque,
     relatorios: carregarRelatorios,
     gastos: carregarGastos,
-    sabores: carregarSabores
+    sabores: carregarSabores,
+    fluxo: carregarFluxo
   };
   if (loaders[pagina]) loaders[pagina]();
 }
@@ -1156,6 +1157,87 @@ $('login-senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazer
 $('btn-confirmar-senha').addEventListener('click', confirmarNovaSenha);
 $('confirmar-senha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 $('btn-logout').addEventListener('click', fazerLogout);
+
+// ─── FLUXO DE CAIXA ──────────────────────────
+async function carregarFluxo() {
+  popularAnosSelect('fluxo-ano');
+  inicializarMesAtual('fluxo-mes');
+  await renderizarFluxo();
+}
+
+async function renderizarFluxo() {
+  const mes = $('fluxo-mes').value;
+  const ano = $('fluxo-ano').value;
+  const registros = await api(`/api/fluxo-caixa?mes=${mes}&ano=${ano}`);
+
+  const totalEntradas = registros.filter(r => r.tipo === 'entrada').reduce((a, r) => a + r.valor, 0);
+  const totalSaidas   = registros.filter(r => r.tipo === 'saida').reduce((a, r) => a + r.valor, 0);
+  const saldoFinal    = totalEntradas - totalSaidas;
+  const saldoClass    = saldoFinal >= 0 ? 'card-green' : 'card-red';
+  const saldoIcon     = saldoFinal >= 0 ? '📈' : '📉';
+
+  $('fluxo-resumo').innerHTML = `
+    <div class="card card-green"><div class="card-icon">💰</div><div class="card-info"><div class="card-value">${fmt(totalEntradas)}</div><div class="card-label">Total Entradas</div></div></div>
+    <div class="card card-red"><div class="card-icon">💸</div><div class="card-info"><div class="card-value">${fmt(totalSaidas)}</div><div class="card-label">Total Saídas</div></div></div>
+    <div class="card ${saldoClass}"><div class="card-icon">${saldoIcon}</div><div class="card-info"><div class="card-value">${fmt(saldoFinal)}</div><div class="card-label">Saldo do Período</div></div></div>
+  `;
+
+  const tbody = $('fluxo-tbody');
+  tbody.innerHTML = '';
+  if (!registros.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><span class="emoji">📭</span><p>Nenhum registro neste período.</p></td></tr>';
+    return;
+  }
+  registros.forEach(r => {
+    const [a, m, d] = r.data.split('-');
+    const isEntrada = r.tipo === 'entrada';
+    const saldoColor = r.saldo >= 0 ? 'text-green' : 'text-red';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${d}/${m}/${a}</td>
+      <td>${r.descricao}</td>
+      <td><span class="badge">${r.categoria || '—'}</span></td>
+      <td><span class="fluxo-tipo ${isEntrada ? 'tipo-entrada' : 'tipo-saida'}">${isEntrada ? 'Entrada' : 'Saída'}</span></td>
+      <td class="fw-bold ${isEntrada ? 'text-green' : 'text-red'}">${isEntrada ? '+' : '-'} ${fmt(r.valor)}</td>
+      <td class="fw-bold ${saldoColor}">${fmt(r.saldo)}</td>
+      <td>${r.origem === 'avulso' ? `<button class="btn btn-danger" onclick="deletarAvulso(${r.id})">🗑</button>` : '<span style="color:var(--text-muted);font-size:0.8rem">auto</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function deletarAvulso(id) {
+  if (!confirm('Excluir este lançamento?')) return;
+  await api(`/api/fluxo-caixa/avulso/${id}`, { method: 'DELETE' });
+  toast('Lançamento excluído!', 'info');
+  renderizarFluxo();
+}
+
+async function salvarAvulso() {
+  const data      = $('avulso-data').value;
+  const tipo      = $('avulso-tipo').value;
+  const categoria = $('avulso-categoria').value.trim();
+  const descricao = $('avulso-descricao').value.trim();
+  const valor     = parseFloat($('avulso-valor').value);
+  if (!data || !descricao || !valor) return toast('Preencha data, descrição e valor!', 'error');
+  await api('/api/fluxo-caixa/avulso', { method: 'POST', body: { data, tipo, categoria, descricao, valor } });
+  $('modal-avulso').classList.remove('open');
+  toast('✅ Lançamento salvo!');
+  renderizarFluxo();
+}
+
+$('btn-novo-avulso').addEventListener('click', () => {
+  $('avulso-data').value = hoje();
+  $('avulso-tipo').value = 'entrada';
+  $('avulso-categoria').value = '';
+  $('avulso-descricao').value = '';
+  $('avulso-valor').value = '';
+  $('modal-avulso').classList.add('open');
+});
+$('modal-avulso-close').addEventListener('click', () => $('modal-avulso').classList.remove('open'));
+$('btn-salvar-avulso').addEventListener('click', salvarAvulso);
+$('fluxo-mes').addEventListener('change', renderizarFluxo);
+$('fluxo-ano').addEventListener('change', renderizarFluxo);
 
 // ─── PEDIDO CLIENTE ───────────────────────────
 const WA_NUMS = ['5563999667047', '5563992657531'];

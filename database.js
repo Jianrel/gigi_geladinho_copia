@@ -109,6 +109,16 @@ async function inicializar() {
       senha_hash TEXT NOT NULL,
       deve_trocar_senha BOOLEAN NOT NULL DEFAULT TRUE
     );
+
+    CREATE TABLE IF NOT EXISTS fluxo_caixa_avulso (
+      id SERIAL PRIMARY KEY,
+      data TEXT NOT NULL,
+      descricao TEXT NOT NULL,
+      tipo TEXT NOT NULL CHECK (tipo IN ('entrada', 'saida')),
+      categoria TEXT,
+      valor REAL NOT NULL DEFAULT 0,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   const row = await db.get('SELECT COUNT(*) as c FROM sabores');

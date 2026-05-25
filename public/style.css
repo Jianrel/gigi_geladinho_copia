@@ -860,6 +860,27 @@ body {
 /* oculta scroll do body enquanto login overlay está visível */
 body:has(#login-overlay:not([style*="display: none"])) { overflow: hidden; }
 
+/* ─── FLUXO DE CAIXA ─────────────────────────── */
+.fluxo-tipo {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.tipo-entrada { background: var(--verde-light); color: var(--verde-dark); }
+.tipo-saida   { background: var(--coral-light); color: var(--coral); }
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--azul-light);
+  color: var(--azul);
+}
+
 /* ─── RODAPÉ LOGIN ───────────────────────────── */
 .login-footer {
   margin-top: 1.2rem;

@@ -486,6 +486,69 @@ app.post('/api/importar', wrap(async (req, res) => {
   res.json({ ok, erros });
 }));
 
+// ─── FLUXO DE CAIXA ──────────────────────────────
+app.get('/api/fluxo-caixa', wrap(async (req, res) => {
+  const { mes, ano } = req.query;
+  const p = [parseInt(mes), parseInt(ano)];
+
+  // Entradas: vendas dos lançamentos
+  const vendas = await db.all(`
+    SELECT l.data, s.nome as descricao, 'entrada' as tipo, 'Vendas' as categoria,
+      ROUND((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram)
+        ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) * s.preco, 2) as valor
+    FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id
+    WHERE EXTRACT(MONTH FROM l.data::date) = ? AND EXTRACT(YEAR FROM l.data::date) = ?
+      AND (CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram)
+        ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) > 0
+  `, p);
+
+  // Saídas: gastos de produção
+  const gastos = await db.all(`
+    SELECT g.data, COALESCE('Produção: ' || s.nome, g.descricao, 'Gasto avulso') as descricao,
+      'saida' as tipo, 'Produção' as categoria, g.valor
+    FROM gastos_producao g LEFT JOIN sabores s ON g.sabor_id = s.id
+    WHERE EXTRACT(MONTH FROM g.data::date) = ? AND EXTRACT(YEAR FROM g.data::date) = ?
+  `, p);
+
+  // Lançamentos avulsos
+  const avulsos = await db.all(`
+    SELECT id, data, descricao, tipo, categoria, valor
+    FROM fluxo_caixa_avulso
+    WHERE EXTRACT(MONTH FROM data::date) = ? AND EXTRACT(YEAR FROM data::date) = ?
+  `, p);
+
+  // Combinar e ordenar por data
+  const todos = [
+    ...vendas.map(r => ({ ...r, origem: 'lancamento' })),
+    ...gastos.map(r => ({ ...r, origem: 'gasto' })),
+    ...avulsos.map(r => ({ ...r, origem: 'avulso' }))
+  ].sort((a, b) => a.data.localeCompare(b.data));
+
+  // Calcular saldo acumulado
+  let saldo = 0;
+  todos.forEach(r => {
+    saldo += r.tipo === 'entrada' ? r.valor : -r.valor;
+    r.saldo = Math.round(saldo * 100) / 100;
+  });
+
+  res.json(todos);
+}));
+
+app.post('/api/fluxo-caixa/avulso', wrap(async (req, res) => {
+  const { data, descricao, tipo, categoria, valor } = req.body;
+  if (!data || !descricao || !tipo || !valor) return res.status(400).json({ erro: 'Campos obrigatórios: data, descricao, tipo, valor' });
+  const r = await db.run(
+    'INSERT INTO fluxo_caixa_avulso (data,descricao,tipo,categoria,valor) VALUES (?,?,?,?,?)',
+    [data, descricao, tipo, categoria || null, parseFloat(valor)]
+  );
+  res.json({ id: r.lastID });
+}));
+
+app.delete('/api/fluxo-caixa/avulso/:id', wrap(async (req, res) => {
+  await db.run('DELETE FROM fluxo_caixa_avulso WHERE id=?', [req.params.id]);
+  res.json({ ok: true });
+}));
+
 // ─── EXPORTAR PARA VERCEL ─────────────────────────
 // Em ambiente local, você ainda pode rodar com 'node server.js'
 if (require.main === module) {
