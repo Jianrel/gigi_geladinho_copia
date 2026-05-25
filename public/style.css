@@ -857,6 +857,9 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* oculta scroll do body enquanto login overlay está visível */
+body:has(#login-overlay:not([style*="display: none"])) { overflow: hidden; }
+
 /* ─── RODAPÉ LOGIN ───────────────────────────── */
 .login-footer {
   margin-top: 1.2rem;
