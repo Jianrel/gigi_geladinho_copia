@@ -114,6 +114,35 @@ function atualizarDataSidebar() {
 atualizarDataSidebar();
 
 // ─── DASHBOARD ───────────────────────────────
+function renderizarAlertasEstoque(estoque) {
+  const criticos  = estoque.filter(s => parseFloat(s.estoque_atual) === 0);
+  const baixos    = estoque.filter(s => parseFloat(s.estoque_atual) > 0 && parseFloat(s.estoque_atual) <= 10);
+  const el = $('dash-alertas');
+  if (!criticos.length && !baixos.length) { el.innerHTML = ''; return; }
+
+  let html = '<div class="dash-alertas-wrap">';
+  if (criticos.length) {
+    html += `<div class="dash-alerta dash-alerta-critico">
+      <span class="dash-alerta-icon">🚨</span>
+      <div>
+        <strong>Estoque zerado:</strong>
+        ${criticos.map(s => `<span class="alerta-sabor">${s.nome}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+  if (baixos.length) {
+    html += `<div class="dash-alerta dash-alerta-aviso">
+      <span class="dash-alerta-icon">⚠️</span>
+      <div>
+        <strong>Estoque baixo (≤ 10 unidades):</strong>
+        ${baixos.map(s => `<span class="alerta-sabor">${s.nome} <em>(${s.estoque_atual})</em></span>`).join('')}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 async function carregarDashboard() {
   const dataEl = $('dash-data');
   const isMes = !dataEl.value;
@@ -160,6 +189,7 @@ async function carregarDashboard() {
   
   const totalEstoqueHoje = (estoqueAtual || []).reduce((a, s) => a + (parseFloat(s.estoque_atual) || 0), 0);
   $('stat-estoque').textContent = fmtNum(totalEstoqueHoje);
+  renderizarAlertasEstoque(estoqueAtual || []);
   $('stat-receita-mes').textContent = fmt(resumoDia.receitaMes);
 
   // Gráfico: vendas por sabor hoje ou no mês

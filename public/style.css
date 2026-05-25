@@ -862,6 +862,33 @@ body {
 /* oculta scroll do body enquanto login overlay está visível */
 body:has(#login-overlay:not([style*="display: none"])) { overflow: hidden; }
 
+/* ─── ALERTAS DE ESTOQUE ─────────────────────── */
+.dash-alertas-wrap { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.4rem; }
+
+.dash-alerta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.dash-alerta-critico { background: #FDEAEA; border-left: 4px solid var(--coral); color: #7B2020; }
+.dash-alerta-aviso   { background: #FEF9E7; border-left: 4px solid var(--amarelo); color: #7B5E00; }
+.dash-alerta-icon    { font-size: 1.2rem; line-height: 1; flex-shrink: 0; }
+
+.alerta-sabor {
+  display: inline-block;
+  background: rgba(0,0,0,0.07);
+  border-radius: 4px;
+  padding: 0.05rem 0.45rem;
+  margin: 0.15rem 0.2rem 0 0;
+  font-weight: 600;
+  font-size: 0.83rem;
+}
+.alerta-sabor em { font-style: normal; opacity: 0.75; }
+
 /* ─── FLUXO DE CAIXA ─────────────────────────── */
 .fluxo-filtros {
   display: flex;
