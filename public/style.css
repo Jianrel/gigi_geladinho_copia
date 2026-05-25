@@ -827,12 +827,12 @@ body {
 }
 
 .login-logo img {
-  width: 80px;
-  height: 80px;
-  object-fit: contain;
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
   border-radius: 50%;
   margin-bottom: 0.5rem;
-  border: 3px solid var(--verde);
+  border: 4px solid var(--verde);
 }
 
 .login-titulo {
