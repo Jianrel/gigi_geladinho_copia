@@ -488,8 +488,20 @@ app.post('/api/importar', wrap(async (req, res) => {
 
 // ─── FLUXO DE CAIXA ──────────────────────────────
 app.get('/api/fluxo-caixa', wrap(async (req, res) => {
-  const { mes, ano } = req.query;
-  const p = [parseInt(mes), parseInt(ano)];
+  const { mes, ano, dataInicio, dataFim } = req.query;
+
+  let whereVendas, whereGastos, whereAvulsos, p;
+  if (dataInicio && dataFim) {
+    whereVendas  = 'l.data >= ? AND l.data <= ?';
+    whereGastos  = 'g.data >= ? AND g.data <= ?';
+    whereAvulsos = 'data >= ? AND data <= ?';
+    p = [dataInicio, dataFim];
+  } else {
+    whereVendas  = "EXTRACT(MONTH FROM l.data::date) = ? AND EXTRACT(YEAR FROM l.data::date) = ?";
+    whereGastos  = "EXTRACT(MONTH FROM g.data::date) = ? AND EXTRACT(YEAR FROM g.data::date) = ?";
+    whereAvulsos = "EXTRACT(MONTH FROM data::date) = ? AND EXTRACT(YEAR FROM data::date) = ?";
+    p = [parseInt(mes), parseInt(ano)];
+  }
 
   // Entradas: vendas dos lançamentos
   const vendas = await db.all(`
@@ -497,7 +509,7 @@ app.get('/api/fluxo-caixa', wrap(async (req, res) => {
       GREATEST(0, CASE WHEN l.quantidade > 0 THEN (l.quantidade - l.voltaram)
         ELSE (l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) * s.preco::numeric as valor
     FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id
-    WHERE EXTRACT(MONTH FROM l.data::date) = ? AND EXTRACT(YEAR FROM l.data::date) = ?
+    WHERE ${whereVendas}
       AND GREATEST(0, CASE WHEN l.quantidade > 0 THEN (l.quantidade - l.voltaram)
         ELSE (l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) > 0
   `, p);
@@ -507,14 +519,14 @@ app.get('/api/fluxo-caixa', wrap(async (req, res) => {
     SELECT g.data, COALESCE('Produção: ' || s.nome, g.descricao, 'Gasto avulso') as descricao,
       'saida' as tipo, 'Produção' as categoria, g.valor
     FROM gastos_producao g LEFT JOIN sabores s ON g.sabor_id = s.id
-    WHERE EXTRACT(MONTH FROM g.data::date) = ? AND EXTRACT(YEAR FROM g.data::date) = ?
+    WHERE ${whereGastos}
   `, p);
 
   // Lançamentos avulsos
   const avulsos = await db.all(`
     SELECT id, data, descricao, tipo, categoria, valor
     FROM fluxo_caixa_avulso
-    WHERE EXTRACT(MONTH FROM data::date) = ? AND EXTRACT(YEAR FROM data::date) = ?
+    WHERE ${whereAvulsos}
   `, p);
 
   // Combinar e ordenar por data

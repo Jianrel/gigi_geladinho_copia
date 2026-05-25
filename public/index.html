@@ -659,16 +659,32 @@
         <button class="btn btn-success" id="btn-novo-avulso">+ Lançamento Avulso</button>
       </div>
 
-      <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center;">
-        <select id="fluxo-mes" class="input-select">
-          <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-          <option value="3">Março</option><option value="4">Abril</option>
-          <option value="5">Maio</option><option value="6">Junho</option>
-          <option value="7">Julho</option><option value="8">Agosto</option>
-          <option value="9">Setembro</option><option value="10">Outubro</option>
-          <option value="11">Novembro</option><option value="12">Dezembro</option>
-        </select>
-        <select id="fluxo-ano" class="input-select"></select>
+      <div class="fluxo-filtros">
+        <div class="fluxo-filtro-grupo">
+          <label class="fluxo-filtro-label">Mês / Ano</label>
+          <div style="display:flex;gap:0.5rem;">
+            <select id="fluxo-mes" class="input-select">
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+              <option value="3">Março</option><option value="4">Abril</option>
+              <option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option>
+              <option value="9">Setembro</option><option value="10">Outubro</option>
+              <option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <select id="fluxo-ano" class="input-select"></select>
+          </div>
+        </div>
+        <div class="fluxo-filtro-sep">ou</div>
+        <div class="fluxo-filtro-grupo">
+          <label class="fluxo-filtro-label">Período personalizado</label>
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <input type="date" id="fluxo-data-ini" class="input-field" style="width:auto;">
+            <span style="color:var(--text-muted);">até</span>
+            <input type="date" id="fluxo-data-fim" class="input-field" style="width:auto;">
+            <button class="btn btn-primary" id="btn-fluxo-buscar">Buscar</button>
+            <button class="btn" id="btn-fluxo-limpar" style="background:var(--bg);border:1px solid var(--border);">Limpar</button>
+          </div>
+        </div>
       </div>
 
       <div class="gastos-resumo" id="fluxo-resumo"></div>
@@ -690,6 +706,7 @@
             <tbody id="fluxo-tbody"></tbody>
           </table>
         </div>
+        <div class="fluxo-paginacao" id="fluxo-paginacao"></div>
       </div>
     </section>
 

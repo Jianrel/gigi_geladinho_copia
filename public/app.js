@@ -1159,17 +1159,32 @@ $('confirmar-senha').addEventListener('keydown', e => { if (e.key === 'Enter') c
 $('btn-logout').addEventListener('click', fazerLogout);
 
 // ─── FLUXO DE CAIXA ──────────────────────────
+const FLUXO_POR_PAGINA = 20;
+let fluxoPagina = 1;
+let fluxoRegistros = [];
+
 async function carregarFluxo() {
   popularAnosSelect('fluxo-ano');
   inicializarMesAtual('fluxo-mes');
-  await renderizarFluxo();
+  await buscarFluxo();
 }
 
-async function renderizarFluxo() {
-  const mes = $('fluxo-mes').value;
-  const ano = $('fluxo-ano').value;
-  const registros = await api(`/api/fluxo-caixa?mes=${mes}&ano=${ano}`);
+async function buscarFluxo() {
+  fluxoPagina = 1;
+  const ini = $('fluxo-data-ini').value;
+  const fim = $('fluxo-data-fim').value;
+  let url;
+  if (ini && fim) {
+    url = `/api/fluxo-caixa?dataInicio=${ini}&dataFim=${fim}`;
+  } else {
+    url = `/api/fluxo-caixa?mes=${$('fluxo-mes').value}&ano=${$('fluxo-ano').value}`;
+  }
+  fluxoRegistros = await api(url);
+  renderizarFluxo();
+}
 
+function renderizarFluxo() {
+  const registros = fluxoRegistros;
   const totalEntradas = registros.filter(r => r.tipo === 'entrada').reduce((a, r) => a + parseFloat(r.valor), 0);
   const totalSaidas   = registros.filter(r => r.tipo === 'saida').reduce((a, r) => a + parseFloat(r.valor), 0);
   const saldoFinal    = totalEntradas - totalSaidas;
@@ -1186,9 +1201,16 @@ async function renderizarFluxo() {
   tbody.innerHTML = '';
   if (!registros.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><span class="emoji">📭</span><p>Nenhum registro neste período.</p></td></tr>';
+    $('fluxo-paginacao').innerHTML = '';
     return;
   }
-  registros.forEach(r => {
+
+  const totalPags = Math.ceil(registros.length / FLUXO_POR_PAGINA);
+  if (fluxoPagina > totalPags) fluxoPagina = totalPags;
+  const inicio = (fluxoPagina - 1) * FLUXO_POR_PAGINA;
+  const pagina = registros.slice(inicio, inicio + FLUXO_POR_PAGINA);
+
+  pagina.forEach(r => {
     const [a, m, d] = r.data.split('-');
     const isEntrada = r.tipo === 'entrada';
     const saldoColor = r.saldo >= 0 ? 'text-green' : 'text-red';
@@ -1204,13 +1226,28 @@ async function renderizarFluxo() {
     `;
     tbody.appendChild(tr);
   });
+
+  // Paginação
+  const pag = $('fluxo-paginacao');
+  if (totalPags <= 1) { pag.innerHTML = ''; return; }
+  pag.innerHTML = `
+    <button class="pag-btn" onclick="mudarPagFluxo(${fluxoPagina - 1})" ${fluxoPagina === 1 ? 'disabled' : ''}>‹ Anterior</button>
+    <span class="pag-info">Página ${fluxoPagina} de ${totalPags} &nbsp;(${registros.length} registros)</span>
+    <button class="pag-btn" onclick="mudarPagFluxo(${fluxoPagina + 1})" ${fluxoPagina === totalPags ? 'disabled' : ''}>Próxima ›</button>
+  `;
+}
+
+function mudarPagFluxo(pag) {
+  fluxoPagina = pag;
+  renderizarFluxo();
+  $('fluxo-tabela').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function deletarAvulso(id) {
   if (!confirm('Excluir este lançamento?')) return;
   await api(`/api/fluxo-caixa/avulso/${id}`, { method: 'DELETE' });
   toast('Lançamento excluído!', 'info');
-  renderizarFluxo();
+  await buscarFluxo();
 }
 
 async function salvarAvulso() {
@@ -1223,7 +1260,7 @@ async function salvarAvulso() {
   await api('/api/fluxo-caixa/avulso', { method: 'POST', body: { data, tipo, categoria, descricao, valor } });
   $('modal-avulso').classList.remove('open');
   toast('✅ Lançamento salvo!');
-  renderizarFluxo();
+  await buscarFluxo();
 }
 
 $('btn-novo-avulso').addEventListener('click', () => {
@@ -1236,8 +1273,14 @@ $('btn-novo-avulso').addEventListener('click', () => {
 });
 $('modal-avulso-close').addEventListener('click', () => $('modal-avulso').classList.remove('open'));
 $('btn-salvar-avulso').addEventListener('click', salvarAvulso);
-$('fluxo-mes').addEventListener('change', renderizarFluxo);
-$('fluxo-ano').addEventListener('change', renderizarFluxo);
+$('fluxo-mes').addEventListener('change', buscarFluxo);
+$('fluxo-ano').addEventListener('change', buscarFluxo);
+$('btn-fluxo-buscar').addEventListener('click', buscarFluxo);
+$('btn-fluxo-limpar').addEventListener('click', () => {
+  $('fluxo-data-ini').value = '';
+  $('fluxo-data-fim').value = '';
+  buscarFluxo();
+});
 
 // ─── PEDIDO CLIENTE ───────────────────────────
 const WA_NUMS = ['5563999667047', '5563992657531'];
