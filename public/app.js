@@ -1227,6 +1227,9 @@ function enviarPedidoWhatsApp(idx) {
   window.open(url, '_blank');
 }
 
+$('btn-politica-privacidade').addEventListener('click', e => { e.preventDefault(); $('modal-politica').classList.add('open'); });
+$('modal-politica-close').addEventListener('click', () => $('modal-politica').classList.remove('open'));
+
 $('btn-abrir-pedido').addEventListener('click', abrirModalPedido);
 $('modal-pedido-close').addEventListener('click', () => $('modal-pedido').classList.remove('open'));
 $('btn-whatsapp-1').addEventListener('click', () => enviarPedidoWhatsApp(0));
