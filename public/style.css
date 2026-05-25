@@ -857,6 +857,21 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* ─── RODAPÉ LOGIN ───────────────────────────── */
+.login-footer {
+  margin-top: 1.2rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.login-footer a {
+  color: var(--verde-dark);
+  text-decoration: none;
+  font-weight: 600;
+}
+.login-footer a:hover { text-decoration: underline; }
+
 /* ─── RODAPÉ ─────────────────────────────────── */
 .app-footer {
   margin-top: 3rem;
