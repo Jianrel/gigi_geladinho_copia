@@ -527,6 +527,7 @@ app.get('/api/fluxo-caixa', wrap(async (req, res) => {
   // Calcular saldo acumulado
   let saldo = 0;
   todos.forEach(r => {
+    r.valor = parseFloat(r.valor) || 0;
     saldo += r.tipo === 'entrada' ? r.valor : -r.valor;
     r.saldo = Math.round(saldo * 100) / 100;
   });

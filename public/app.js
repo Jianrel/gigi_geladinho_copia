@@ -1170,8 +1170,8 @@ async function renderizarFluxo() {
   const ano = $('fluxo-ano').value;
   const registros = await api(`/api/fluxo-caixa?mes=${mes}&ano=${ano}`);
 
-  const totalEntradas = registros.filter(r => r.tipo === 'entrada').reduce((a, r) => a + r.valor, 0);
-  const totalSaidas   = registros.filter(r => r.tipo === 'saida').reduce((a, r) => a + r.valor, 0);
+  const totalEntradas = registros.filter(r => r.tipo === 'entrada').reduce((a, r) => a + parseFloat(r.valor), 0);
+  const totalSaidas   = registros.filter(r => r.tipo === 'saida').reduce((a, r) => a + parseFloat(r.valor), 0);
   const saldoFinal    = totalEntradas - totalSaidas;
   const saldoClass    = saldoFinal >= 0 ? 'card-green' : 'card-red';
   const saldoIcon     = saldoFinal >= 0 ? '📈' : '📉';
