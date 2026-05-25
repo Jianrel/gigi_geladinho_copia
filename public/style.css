@@ -889,7 +889,7 @@ body {
 .app-footer a:hover { text-decoration: underline; }
 
 /* ─── PEDIDO CLIENTE ─────────────────────────── */
-#modal-pedido { z-index: 10000; padding: 20px 28px; }
+#modal-pedido, #modal-politica { z-index: 10000; padding: 20px 28px; }
 
 .login-divider {
   text-align: center;
