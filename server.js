@@ -97,6 +97,11 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true }); // token é stateless, logout só limpa o cliente
 });
 
+// rota pública — usada na tela de pedido sem login
+app.get('/api/sabores-publico', wrap(async (req, res) => {
+  res.json(await db.all('SELECT id, nome, categoria, preco FROM sabores WHERE ativo=1 ORDER BY categoria, nome'));
+}));
+
 // ─── MIDDLEWARE AUTH (protege todas as rotas abaixo) ──
 app.use('/api', auth);
 

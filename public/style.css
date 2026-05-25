@@ -857,6 +857,86 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* ─── PEDIDO CLIENTE ─────────────────────────── */
+#modal-pedido { z-index: 10000; padding: 20px 28px; }
+
+.login-divider {
+  text-align: center;
+  margin: 1rem 0 0.75rem;
+  position: relative;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.login-divider::before, .login-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 42%;
+  height: 1px;
+  background: var(--border);
+}
+.login-divider::before { left: 0; }
+.login-divider::after  { right: 0; }
+
+.btn-pedido {
+  background: linear-gradient(135deg, #7dd3b0, #5BB894);
+  color: #fff;
+  font-weight: 800;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-pedido:hover { opacity: 0.88; }
+
+.btn-whatsapp {
+  background: #25D366;
+  color: #fff;
+  font-weight: 800;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.85rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-whatsapp:hover { opacity: 0.88; }
+
+.sabor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1.1rem;
+}
+.sabor-item-info { display: flex; flex-direction: column; }
+.sabor-item-nome { font-weight: 700; color: var(--azul); font-size: 0.95rem; }
+.sabor-item-preco { font-size: 0.82rem; color: var(--verde-dark); font-weight: 600; }
+.sabor-item-ctrl { display: flex; align-items: center; gap: 0.5rem; }
+.sabor-item-ctrl button {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--azul);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.sabor-item-ctrl button:hover { background: var(--verde-dark); }
+.sabor-item-ctrl .qtd-display {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--text);
+}
+
 /* ─── SIDEBAR USER ───────────────────────────── */
 .sidebar-user {
   display: flex;

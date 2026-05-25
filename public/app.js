@@ -1157,6 +1157,81 @@ $('btn-confirmar-senha').addEventListener('click', confirmarNovaSenha);
 $('confirmar-senha').addEventListener('keydown', e => { if (e.key === 'Enter') confirmarNovaSenha(); });
 $('btn-logout').addEventListener('click', fazerLogout);
 
+// ─── PEDIDO CLIENTE ───────────────────────────
+const WA_NUMS = ['5563999667047', '5563992657531'];
+const WA_NOMES = ['Jailson', 'Gigi'];
+let pedidoCarrinho = {};
+
+async function abrirModalPedido() {
+  pedidoCarrinho = {};
+  $('pedido-nome').value = '';
+  $('pedido-carrinho').style.display = 'none';
+  const sabores = await fetch('/api/sabores-publico').then(r => r.json());
+  const lista = $('pedido-sabores-lista');
+  lista.innerHTML = '';
+  sabores.forEach(s => {
+    pedidoCarrinho[s.id] = { nome: s.nome, preco: s.preco, qtd: 0 };
+    const div = document.createElement('div');
+    div.className = 'sabor-item';
+    div.innerHTML = `
+      <div class="sabor-item-info">
+        <span class="sabor-item-nome">${s.nome}</span>
+        <span class="sabor-item-preco">${fmt(s.preco)} cada</span>
+      </div>
+      <div class="sabor-item-ctrl">
+        <button onclick="pedidoAjustar(${s.id}, -1)">−</button>
+        <span class="qtd-display" id="pedido-qtd-${s.id}">0</span>
+        <button onclick="pedidoAjustar(${s.id}, +1)">+</button>
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+  $('modal-pedido').classList.add('open');
+}
+
+function pedidoAjustar(id, delta) {
+  const item = pedidoCarrinho[id];
+  item.qtd = Math.max(0, item.qtd + delta);
+  $(`pedido-qtd-${id}`).textContent = item.qtd;
+  atualizarResumoPedido();
+}
+
+function atualizarResumoPedido() {
+  const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
+  const total = itens.reduce((a, i) => a + i.qtd * i.preco, 0);
+  const carrinho = $('pedido-carrinho');
+  if (!itens.length) { carrinho.style.display = 'none'; return; }
+  carrinho.style.display = 'block';
+  $('pedido-resumo-itens').innerHTML = itens.map(i =>
+    `<div style="display:flex;justify-content:space-between;padding:0.2rem 0;">
+      <span>${i.nome} × ${i.qtd}</span>
+      <span>${fmt(i.qtd * i.preco)}</span>
+    </div>`
+  ).join('');
+  $('pedido-total').textContent = fmt(total);
+}
+
+function montarMensagemPedido() {
+  const nome = $('pedido-nome').value.trim() || 'Cliente';
+  const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
+  if (!itens.length) { toast('Adicione ao menos um sabor!', 'error'); return null; }
+  const total = itens.reduce((a, i) => a + i.qtd * i.preco, 0);
+  const linhas = itens.map(i => `- ${i.nome} x${i.qtd} = ${fmt(i.qtd * i.preco)}`).join('\n');
+  return `Ola! Gostaria de fazer um pedido\n\nNome: *${nome}*\n\n${linhas}\n\n*Total: ${fmt(total)}*`;
+}
+
+function enviarPedidoWhatsApp(idx) {
+  const msg = montarMensagemPedido();
+  if (!msg) return;
+  const url = `https://wa.me/${WA_NUMS[idx]}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+$('btn-abrir-pedido').addEventListener('click', abrirModalPedido);
+$('modal-pedido-close').addEventListener('click', () => $('modal-pedido').classList.remove('open'));
+$('btn-whatsapp-1').addEventListener('click', () => enviarPedidoWhatsApp(0));
+$('btn-whatsapp-2').addEventListener('click', () => enviarPedidoWhatsApp(1));
+
 // ─── INICIALIZAÇÃO ────────────────────────────
 async function iniciarApp() {
   state.sabores = await api('/api/sabores');
