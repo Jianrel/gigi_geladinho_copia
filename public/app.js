@@ -1212,7 +1212,14 @@ function atualizarResumoPedido() {
 }
 
 function montarMensagemPedido() {
-  const nome = $('pedido-nome').value.trim() || 'Cliente';
+  const nome = $('pedido-nome').value.trim();
+  if (!nome) {
+    $('pedido-nome').focus();
+    $('pedido-nome').style.borderColor = 'var(--coral)';
+    toast('Por favor, informe seu nome!', 'error');
+    return null;
+  }
+  $('pedido-nome').style.borderColor = '';
   const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
   if (!itens.length) { toast('Adicione ao menos um sabor!', 'error'); return null; }
   const total = itens.reduce((a, i) => a + i.qtd * i.preco, 0);
