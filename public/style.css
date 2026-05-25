@@ -910,13 +910,23 @@ body:has(#login-overlay:not([style*="display: none"])) { overflow: hidden; }
 
 .badge {
   display: inline-block;
-  padding: 0.15rem 0.5rem;
+  padding: 0.15rem 0.6rem;
   border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   background: var(--azul-light);
   color: var(--azul);
 }
+.badge-vendas      { background: #EBF7F2; color: #3D9070; }
+.badge-nubank      { background: #F0EBF8; color: #6B21A8; }
+.badge-mercadopago { background: #E0F2FE; color: #0369A1; }
+.badge-combustivel { background: #FEF3C7; color: #B45309; }
+.badge-supermercado{ background: #ECFDF5; color: #065F46; }
+.badge-energia     { background: #FEF9E7; color: #B7791F; }
+.badge-agua        { background: #E0F7FA; color: #00695C; }
+.badge-internet    { background: #EDE9FE; color: #4C1D95; }
+.badge-producao    { background: #FDEAEA; color: #C53030; }
+.badge-outros      { background: #F3F4F6; color: #4B5563; }
 
 /* ─── RODAPÉ LOGIN ───────────────────────────── */
 .login-footer {

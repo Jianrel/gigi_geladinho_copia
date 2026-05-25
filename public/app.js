@@ -1159,6 +1159,23 @@ $('confirmar-senha').addEventListener('keydown', e => { if (e.key === 'Enter') c
 $('btn-logout').addEventListener('click', fazerLogout);
 
 // ─── FLUXO DE CAIXA ──────────────────────────
+const CATEGORIA_BADGE = {
+  'Vendas':       'badge-vendas',
+  'Nubank':       'badge-nubank',
+  'Mercado Pago': 'badge-mercadopago',
+  'Combustível':  'badge-combustivel',
+  'Supermercado': 'badge-supermercado',
+  'Energia':      'badge-energia',
+  'Água':         'badge-agua',
+  'Internet':     'badge-internet',
+  'Produção':     'badge-producao',
+  'Outros':       'badge-outros',
+};
+function badgeCategoria(cat) {
+  const cls = CATEGORIA_BADGE[cat] || '';
+  return `<span class="badge ${cls}">${cat || '—'}</span>`;
+}
+
 const FLUXO_POR_PAGINA = 20;
 let fluxoPagina = 1;
 let fluxoRegistros = [];
@@ -1184,7 +1201,10 @@ async function buscarFluxo() {
 }
 
 function renderizarFluxo() {
-  const registros = fluxoRegistros;
+  const catFiltro = $('fluxo-filtro-cat').value;
+  const registros = catFiltro
+    ? fluxoRegistros.filter(r => (r.categoria || '') === catFiltro)
+    : fluxoRegistros;
   const totalEntradas = registros.filter(r => r.tipo === 'entrada').reduce((a, r) => a + parseFloat(r.valor), 0);
   const totalSaidas   = registros.filter(r => r.tipo === 'saida').reduce((a, r) => a + parseFloat(r.valor), 0);
   const saldoFinal    = totalEntradas - totalSaidas;
@@ -1218,7 +1238,7 @@ function renderizarFluxo() {
     tr.innerHTML = `
       <td>${d}/${m}/${a}</td>
       <td>${r.descricao}</td>
-      <td><span class="badge">${r.categoria || '—'}</span></td>
+      <td>${badgeCategoria(r.categoria)}</td>
       <td><span class="fluxo-tipo ${isEntrada ? 'tipo-entrada' : 'tipo-saida'}">${isEntrada ? 'Entrada' : 'Saída'}</span></td>
       <td class="fw-bold ${isEntrada ? 'text-green' : 'text-red'}">${isEntrada ? '+' : '-'} ${fmt(r.valor)}</td>
       <td class="fw-bold ${saldoColor}">${fmt(r.saldo)}</td>
@@ -1281,6 +1301,7 @@ $('btn-fluxo-limpar').addEventListener('click', () => {
   $('fluxo-data-fim').value = '';
   buscarFluxo();
 });
+$('fluxo-filtro-cat').addEventListener('change', () => { fluxoPagina = 1; renderizarFluxo(); });
 
 // ─── PEDIDO CLIENTE ───────────────────────────
 const WA_NUMS = ['5563999667047', '5563992657531'];
