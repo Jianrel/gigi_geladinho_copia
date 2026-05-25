@@ -494,12 +494,12 @@ app.get('/api/fluxo-caixa', wrap(async (req, res) => {
   // Entradas: vendas dos lançamentos
   const vendas = await db.all(`
     SELECT l.data, s.nome as descricao, 'entrada' as tipo, 'Vendas' as categoria,
-      ROUND((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram)
-        ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) * s.preco, 2) as valor
+      GREATEST(0, CASE WHEN l.quantidade > 0 THEN (l.quantidade - l.voltaram)
+        ELSE (l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) * s.preco::numeric as valor
     FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id
     WHERE EXTRACT(MONTH FROM l.data::date) = ? AND EXTRACT(YEAR FROM l.data::date) = ?
-      AND (CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram)
-        ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) > 0
+      AND GREATEST(0, CASE WHEN l.quantidade > 0 THEN (l.quantidade - l.voltaram)
+        ELSE (l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) > 0
   `, p);
 
   // Saídas: gastos de produção
