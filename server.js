@@ -534,7 +534,7 @@ app.get('/api/fluxo-caixa', wrap(async (req, res) => {
     ...vendas.map(r => ({ ...r, origem: 'lancamento' })),
     ...gastos.map(r => ({ ...r, origem: 'gasto' })),
     ...avulsos.map(r => ({ ...r, origem: 'avulso' }))
-  ].sort((a, b) => a.data.localeCompare(b.data));
+  ].sort((a, b) => b.data.localeCompare(a.data));
 
   // Calcular saldo acumulado
   let saldo = 0;
