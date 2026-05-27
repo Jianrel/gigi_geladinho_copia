@@ -530,13 +530,14 @@ app.get('/api/fluxo-caixa', wrap(async (req, res) => {
   `, p);
 
   // Combinar e ordenar por data
+  // Ordenar do mais antigo para o mais novo para calcular saldo corretamente
   const todos = [
     ...vendas.map(r => ({ ...r, origem: 'lancamento' })),
     ...gastos.map(r => ({ ...r, origem: 'gasto' })),
     ...avulsos.map(r => ({ ...r, origem: 'avulso' }))
-  ].sort((a, b) => b.data.localeCompare(a.data));
+  ].sort((a, b) => a.data.localeCompare(b.data));
 
-  // Calcular saldo acumulado
+  // Calcular saldo acumulado (do mais antigo ao mais novo)
   let saldo = 0;
   todos.forEach(r => {
     r.valor = parseFloat(r.valor) || 0;
@@ -544,7 +545,8 @@ app.get('/api/fluxo-caixa', wrap(async (req, res) => {
     r.saldo = Math.round(saldo * 100) / 100;
   });
 
-  res.json(todos);
+  // Inverter para exibir o mais recente primeiro
+  res.json(todos.reverse());
 }));
 
 app.post('/api/fluxo-caixa/avulso', wrap(async (req, res) => {
