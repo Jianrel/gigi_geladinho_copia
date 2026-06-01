@@ -1384,7 +1384,7 @@ $('btn-fluxo-limpar').addEventListener('click', () => {
 $('fluxo-filtro-cat').addEventListener('change', () => { fluxoPagina = 1; renderizarFluxo(); });
 
 // ─── PEDIDO CLIENTE ───────────────────────────
-const WA_GIGI = '5563992657531';
+const WA_GIGI = '5563999667047';
 let pedidoCarrinho = {};
 
 async function abrirModalPedido() {
