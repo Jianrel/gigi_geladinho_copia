@@ -1392,29 +1392,34 @@ async function abrirModalPedido() {
   $('pedido-nome').value = '';
   $('pedido-telefone').value = '';
   $('pedido-carrinho').style.display = 'none';
-  const sabores = await fetch('/api/sabores-publico').then(r => r.json());
-  const sorted = [...sabores].sort((a, b) => a.nome.toLowerCase() < b.nome.toLowerCase() ? -1 : 1);
-  const lista = $('pedido-sabores-lista');
-  lista.innerHTML = '';
-  sorted.forEach(s => {
-    pedidoCarrinho[s.id] = { nome: s.nome, preco: s.preco, qtd: 0 };
-    const div = document.createElement('div');
-    div.className = 'sabor-item';
-    div.innerHTML = `
-      <div class="sabor-item-info">
-        <span class="sabor-item-nome">${s.nome}</span>
-        <span class="sabor-item-preco">${fmt(s.preco)} cada</span>
-      </div>
-      <div class="sabor-item-ctrl">
-        <button onclick="pedidoAjustar(${s.id}, -1)">−</button>
-        <span class="qtd-display" id="pedido-qtd-${s.id}">0</span>
-        <button onclick="pedidoAjustar(${s.id}, +1)">+</button>
-      </div>
-    `;
-    lista.appendChild(div);
-  });
   pedidoMostrarStep(1);
   $('modal-pedido').classList.add('open');
+  const lista = $('pedido-sabores-lista');
+  lista.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Carregando sabores...</div>';
+  try {
+    const sabores = await fetch('/api/sabores-publico').then(r => r.json());
+    const sorted = [...sabores].sort((a, b) => a.nome.toLowerCase() < b.nome.toLowerCase() ? -1 : 1);
+    lista.innerHTML = '';
+    sorted.forEach(s => {
+      pedidoCarrinho[s.id] = { nome: s.nome, preco: s.preco, qtd: 0 };
+      const div = document.createElement('div');
+      div.className = 'sabor-item';
+      div.innerHTML = `
+        <div class="sabor-item-info">
+          <span class="sabor-item-nome">${s.nome}</span>
+          <span class="sabor-item-preco">${fmt(s.preco)} cada</span>
+        </div>
+        <div class="sabor-item-ctrl">
+          <button onclick="pedidoAjustar(${s.id}, -1)">−</button>
+          <span class="qtd-display" id="pedido-qtd-${s.id}">0</span>
+          <button onclick="pedidoAjustar(${s.id}, +1)">+</button>
+        </div>
+      `;
+      lista.appendChild(div);
+    });
+  } catch {
+    lista.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--coral)">Erro ao carregar sabores. Tente novamente.</div>';
+  }
 }
 
 function pedidoMostrarStep(n) {
