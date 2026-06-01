@@ -1387,6 +1387,15 @@ $('fluxo-filtro-cat').addEventListener('change', () => { fluxoPagina = 1; render
 const WA_GIGI = '5563999667047';
 let pedidoCarrinho = {};
 
+function mascaraTelefone(e) {
+  let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+  if (v.length > 7) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+  else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+  else if (v.length > 0) v = `(${v}`;
+  e.target.value = v;
+}
+$('pedido-telefone').addEventListener('input', mascaraTelefone);
+
 async function abrirModalPedido() {
   pedidoCarrinho = {};
   $('pedido-nome').value = '';
@@ -1465,6 +1474,13 @@ function abrirRevisao() {
     $('pedido-telefone').focus();
     $('pedido-telefone').style.borderColor = 'var(--coral)';
     toast('Por favor, informe seu telefone!', 'error');
+    return;
+  }
+  const telefoneSoDigitos = telefone.replace(/\D/g, '');
+  if (telefoneSoDigitos.length < 10 || telefoneSoDigitos.length > 11) {
+    $('pedido-telefone').focus();
+    $('pedido-telefone').style.borderColor = 'var(--coral)';
+    toast('Telefone inválido! Use o formato (XX) XXXXX-XXXX', 'error');
     return;
   }
   $('pedido-telefone').style.borderColor = '';
