@@ -642,7 +642,8 @@ async function carregarGastos() {
   popularAnosSelect('gastos-ano');
   inicializarMesAtual('gastos-mes');
   // Popular select de sabores no modal
-  const sabores = state.sabores.length ? state.sabores : await api('/api/sabores');
+  const sabores = (state.sabores.length ? state.sabores : await api('/api/sabores'))
+    .slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
   const sel = $('gasto-sabor');
   sel.innerHTML = '<option value="">— Sem sabor específico —</option>';
   sabores.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.nome}</option>`; });
