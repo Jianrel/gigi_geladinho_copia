@@ -107,9 +107,12 @@ app.get('/api/sabores-publico', wrap(async (req, res) => {
 app.post('/api/pedido-webhook', wrap(async (req, res) => {
   const { nome, telefone, itens } = req.body;
   const sabores_geladinho = itens.map(i => `${i.sabor} (${i.qtd}x)`);
+  // Payload com wrapper "body" para compatibilidade com a configuração do n8n ($json.body.body...)
   const payload = JSON.stringify({
-    cliente: { nome, telefone },
-    pedido: { sabores_geladinho }
+    body: {
+      cliente: { nome, telefone },
+      pedido: { sabores_geladinho }
+    }
   });
 
   const webhookUrl = process.env.N8N_WEBHOOK_URL ||
