@@ -861,36 +861,75 @@
   <div class="modal" id="modal-pedido">
     <div class="modal-box" style="max-width:600px;width:100%;max-height:90vh;overflow-y:auto;padding:2rem 2.5rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
-        <h3 style="color:var(--azul);font-size:1.2rem;">🍦 Fazer Pedido</h3>
+        <h3 style="color:var(--azul);font-size:1.2rem;" id="modal-pedido-titulo">🍦 Fazer Pedido</h3>
         <button class="modal-close" id="modal-pedido-close">✕</button>
       </div>
 
-      <div class="form-group">
-        <label>Seu nome</label>
-        <input type="text" id="pedido-nome" class="input-field" placeholder="Como podemos te chamar?">
-      </div>
-
-      <div style="margin:1rem 0 0.5rem;font-weight:700;color:var(--azul);">Escolha os sabores:</div>
-      <div id="pedido-sabores-lista" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;"></div>
-
-      <div id="pedido-carrinho" style="display:none;">
-        <div style="border-top:2px solid var(--border);padding-top:1rem;margin-top:0.5rem;">
-          <div style="font-weight:700;color:var(--azul);margin-bottom:0.5rem;">Resumo do Pedido:</div>
-          <div id="pedido-resumo-itens" style="font-size:0.95rem;color:var(--text);margin-bottom:0.5rem;"></div>
-          <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.1rem;color:var(--verde-dark);border-top:1px solid var(--border);padding-top:0.5rem;">
-            <span>Total:</span>
-            <span id="pedido-total">R$ 0,00</span>
+      <!-- ETAPA 1: seleção -->
+      <div id="pedido-step-1">
+        <div style="display:flex;gap:0.8rem;margin-bottom:1rem;">
+          <div class="form-group" style="flex:1;margin:0;">
+            <label>Seu nome</label>
+            <input type="text" id="pedido-nome" class="input-field" placeholder="Como podemos te chamar?">
+          </div>
+          <div class="form-group" style="flex:1;margin:0;">
+            <label>Seu WhatsApp</label>
+            <input type="tel" id="pedido-telefone" class="input-field" placeholder="(63) 99999-9999">
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:1rem;">
-          <button class="btn btn-whatsapp btn-full" id="btn-whatsapp-1">
-            📲 Enviar para Jailson
-          </button>
-          <button class="btn btn-whatsapp btn-full" id="btn-whatsapp-2">
-            📲 Enviar para Gigi
+        <div style="margin:0.5rem 0;font-weight:700;color:var(--azul);">Escolha os sabores:</div>
+        <div id="pedido-sabores-lista" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;"></div>
+        <div id="pedido-carrinho" style="display:none;">
+          <div style="border-top:2px solid var(--border);padding-top:1rem;margin-top:0.5rem;">
+            <div id="pedido-resumo-itens" style="font-size:0.95rem;color:var(--text);margin-bottom:0.5rem;"></div>
+            <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.1rem;color:var(--verde-dark);border-top:1px solid var(--border);padding-top:0.5rem;">
+              <span>Total:</span><span id="pedido-total">R$ 0,00</span>
+            </div>
+          </div>
+          <button class="btn btn-success btn-full" id="btn-revisar-pedido" style="margin-top:1rem;font-size:1rem;padding:0.85rem;">
+            Revisar Pedido →
           </button>
         </div>
       </div>
+
+      <!-- ETAPA 2: revisão -->
+      <div id="pedido-step-2" style="display:none;">
+        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:1.2rem;margin-bottom:1.2rem;">
+          <div id="revisao-cliente" style="margin-bottom:0.8rem;font-size:0.92rem;color:var(--text-muted);"></div>
+          <div id="revisao-itens" style="font-size:0.95rem;color:var(--text);"></div>
+          <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.1rem;color:var(--verde-dark);border-top:1px solid var(--border);margin-top:0.8rem;padding-top:0.8rem;">
+            <span>Total:</span><span id="revisao-total"></span>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.6rem;">
+          <button class="btn btn-full" id="btn-voltar-pedido" style="background:var(--bg);border:1px solid var(--border);flex:1;">← Voltar</button>
+          <button class="btn btn-success btn-full" id="btn-confirmar-pedido" style="flex:2;font-size:1rem;padding:0.85rem;">
+            Confirmar e Enviar Pedido
+          </button>
+        </div>
+        <div id="pedido-enviando" style="display:none;text-align:center;margin-top:0.8rem;color:var(--text-muted);font-size:0.9rem;">
+          Enviando pedido...
+        </div>
+      </div>
+
+      <!-- ETAPA 3: resultado -->
+      <div id="pedido-step-3" style="display:none;text-align:center;padding:1rem 0;">
+        <div id="pedido-resultado-ok" style="display:none;">
+          <div style="font-size:3rem;margin-bottom:0.8rem;">✅</div>
+          <div style="font-size:1.1rem;font-weight:800;color:var(--verde-dark);margin-bottom:0.4rem;">Pedido enviado com sucesso!</div>
+          <div style="color:var(--text-muted);font-size:0.92rem;">Aguarde o contato do Gigi Geladinho pelo WhatsApp.</div>
+          <button class="btn btn-success" id="btn-fechar-pedido-ok" style="margin-top:1.5rem;padding:0.7rem 2rem;">Fechar</button>
+        </div>
+        <div id="pedido-resultado-erro" style="display:none;">
+          <div style="font-size:3rem;margin-bottom:0.8rem;">⚠️</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--coral);margin-bottom:0.4rem;">Não foi possível enviar o pedido automaticamente.</div>
+          <div style="color:var(--text-muted);font-size:0.88rem;margin-bottom:1.2rem;">Tente enviar diretamente pelo WhatsApp:</div>
+          <button class="btn btn-whatsapp btn-full" id="btn-whatsapp-fallback">
+            📲 Enviar pelo WhatsApp do Gigi
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
