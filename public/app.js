@@ -1384,7 +1384,7 @@ $('btn-fluxo-limpar').addEventListener('click', () => {
 $('fluxo-filtro-cat').addEventListener('change', () => { fluxoPagina = 1; renderizarFluxo(); });
 
 // ─── PEDIDO CLIENTE ───────────────────────────
-const WA_GIGI = '5563999667047';
+const WA_GIGI = '5563992657531';
 let pedidoCarrinho = {};
 
 async function abrirModalPedido() {
@@ -1483,39 +1483,17 @@ function abrirRevisao() {
   pedidoMostrarStep(2);
 }
 
-async function confirmarPedido() {
-  const btn = $('btn-confirmar-pedido');
-  btn.disabled = true;
-  btn.textContent = 'Enviando...';
-  try {
-    const nome = $('pedido-nome').value.trim();
-    const telefone = $('pedido-telefone').value.trim();
-    const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0).map(i => ({ sabor: i.nome, qtd: i.qtd }));
-    const res = await fetch('/api/pedido-webhook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, telefone, itens })
-    });
-    pedidoMostrarStep(3);
-    if (res.ok) {
-      $('pedido-resultado-ok').style.display = '';
-      $('pedido-resultado-erro').style.display = 'none';
-    } else {
-      throw new Error('Falha');
-    }
-  } catch {
-    pedidoMostrarStep(3);
-    $('pedido-resultado-ok').style.display = 'none';
-    $('pedido-resultado-erro').style.display = '';
-    const nome = $('pedido-nome').value.trim();
-    const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
-    const linhas = itens.map(i => `${i.nome} (${i.qtd}x)`).join(', ');
-    const msg = `Ola! Gostaria de fazer um pedido.\n\nNome: ${nome}\nTelefone: ${$('pedido-telefone').value.trim()}\n\nItens: ${linhas}`;
-    $('btn-whatsapp-fallback').onclick = () => window.open(`https://wa.me/${WA_GIGI}?text=${encodeURIComponent(msg)}`, '_blank');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Confirmar e Enviar Pedido';
-  }
+function confirmarPedido() {
+  const nome = $('pedido-nome').value.trim();
+  const telefone = $('pedido-telefone').value.trim();
+  const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
+  const total = itens.reduce((a, i) => a + i.qtd * i.preco, 0);
+  const linhas = itens.map(i => `- ${i.nome} (${i.qtd}x)`).join('\n');
+  const msg = `Ola! Gostaria de fazer um pedido.\n\nNome: ${nome}\nTelefone: ${telefone}\n\n${linhas}\n\nTotal: R$ ${total.toFixed(2).replace('.', ',')}`;
+  window.open(`https://wa.me/${WA_GIGI}?text=${encodeURIComponent(msg)}`, '_blank');
+  pedidoMostrarStep(3);
+  $('pedido-resultado-ok').style.display = '';
+  $('pedido-resultado-erro').style.display = 'none';
 }
 
 $('btn-politica-privacidade').addEventListener('click', e => { e.preventDefault(); $('modal-politica').classList.add('open'); });
