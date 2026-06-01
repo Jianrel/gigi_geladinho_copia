@@ -1384,18 +1384,19 @@ $('btn-fluxo-limpar').addEventListener('click', () => {
 $('fluxo-filtro-cat').addEventListener('change', () => { fluxoPagina = 1; renderizarFluxo(); });
 
 // ─── PEDIDO CLIENTE ───────────────────────────
-const WA_NUMS = ['5563999667047', '5563992657531'];
-const WA_NOMES = ['Jailson', 'Gigi'];
+const WA_GIGI = '5563992657531';
 let pedidoCarrinho = {};
 
 async function abrirModalPedido() {
   pedidoCarrinho = {};
   $('pedido-nome').value = '';
+  $('pedido-telefone').value = '';
   $('pedido-carrinho').style.display = 'none';
   const sabores = await fetch('/api/sabores-publico').then(r => r.json());
+  const sorted = [...sabores].sort((a, b) => a.nome.toLowerCase() < b.nome.toLowerCase() ? -1 : 1);
   const lista = $('pedido-sabores-lista');
   lista.innerHTML = '';
-  sabores.forEach(s => {
+  sorted.forEach(s => {
     pedidoCarrinho[s.id] = { nome: s.nome, preco: s.preco, qtd: 0 };
     const div = document.createElement('div');
     div.className = 'sabor-item';
@@ -1412,7 +1413,15 @@ async function abrirModalPedido() {
     `;
     lista.appendChild(div);
   });
+  pedidoMostrarStep(1);
   $('modal-pedido').classList.add('open');
+}
+
+function pedidoMostrarStep(n) {
+  [1, 2, 3].forEach(i => {
+    const el = $(`pedido-step-${i}`);
+    if (el) el.style.display = i === n ? '' : 'none';
+  });
 }
 
 function pedidoAjustar(id, delta) {
@@ -1437,27 +1446,71 @@ function atualizarResumoPedido() {
   $('pedido-total').textContent = fmt(total);
 }
 
-function montarMensagemPedido() {
+function abrirRevisao() {
   const nome = $('pedido-nome').value.trim();
+  const telefone = $('pedido-telefone').value.trim();
   if (!nome) {
     $('pedido-nome').focus();
     $('pedido-nome').style.borderColor = 'var(--coral)';
     toast('Por favor, informe seu nome!', 'error');
-    return null;
+    return;
   }
   $('pedido-nome').style.borderColor = '';
+  if (!telefone) {
+    $('pedido-telefone').focus();
+    $('pedido-telefone').style.borderColor = 'var(--coral)';
+    toast('Por favor, informe seu telefone!', 'error');
+    return;
+  }
+  $('pedido-telefone').style.borderColor = '';
   const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
-  if (!itens.length) { toast('Adicione ao menos um sabor!', 'error'); return null; }
+  if (!itens.length) { toast('Adicione ao menos um sabor!', 'error'); return; }
+
   const total = itens.reduce((a, i) => a + i.qtd * i.preco, 0);
-  const linhas = itens.map(i => `- ${i.nome} x${i.qtd} = ${fmt(i.qtd * i.preco)}`).join('\n');
-  return `Ola! Gostaria de fazer um pedido\n\nNome: *${nome}*\n\n${linhas}\n\n*Total: ${fmt(total)}*`;
+  $('revisao-cliente').innerHTML = `<strong>${nome}</strong> &nbsp;|&nbsp; ${telefone}`;
+  $('revisao-itens').innerHTML = itens.map(i =>
+    `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border);">
+      <span>${i.nome} (${i.qtd}x)</span>
+      <span>${fmt(i.qtd * i.preco)}</span>
+    </div>`
+  ).join('');
+  $('revisao-total').textContent = fmt(total);
+  pedidoMostrarStep(2);
 }
 
-function enviarPedidoWhatsApp(idx) {
-  const msg = montarMensagemPedido();
-  if (!msg) return;
-  const url = `https://wa.me/${WA_NUMS[idx]}?text=${encodeURIComponent(msg)}`;
-  window.open(url, '_blank');
+async function confirmarPedido() {
+  const btn = $('btn-confirmar-pedido');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  try {
+    const nome = $('pedido-nome').value.trim();
+    const telefone = $('pedido-telefone').value.trim();
+    const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0).map(i => ({ sabor: i.nome, qtd: i.qtd }));
+    const res = await fetch('/api/pedido-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, telefone, itens })
+    });
+    pedidoMostrarStep(3);
+    if (res.ok) {
+      $('pedido-resultado-ok').style.display = '';
+      $('pedido-resultado-erro').style.display = 'none';
+    } else {
+      throw new Error('Falha');
+    }
+  } catch {
+    pedidoMostrarStep(3);
+    $('pedido-resultado-ok').style.display = 'none';
+    $('pedido-resultado-erro').style.display = '';
+    const nome = $('pedido-nome').value.trim();
+    const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
+    const linhas = itens.map(i => `${i.nome} (${i.qtd}x)`).join(', ');
+    const msg = `Ola! Gostaria de fazer um pedido.\n\nNome: ${nome}\nTelefone: ${$('pedido-telefone').value.trim()}\n\nItens: ${linhas}`;
+    $('btn-whatsapp-fallback').onclick = () => window.open(`https://wa.me/${WA_GIGI}?text=${encodeURIComponent(msg)}`, '_blank');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Confirmar e Enviar Pedido';
+  }
 }
 
 $('btn-politica-privacidade').addEventListener('click', e => { e.preventDefault(); $('modal-politica').classList.add('open'); });
@@ -1466,8 +1519,10 @@ $('modal-politica-close').addEventListener('click', () => $('modal-politica').cl
 
 $('btn-abrir-pedido').addEventListener('click', abrirModalPedido);
 $('modal-pedido-close').addEventListener('click', () => $('modal-pedido').classList.remove('open'));
-$('btn-whatsapp-1').addEventListener('click', () => enviarPedidoWhatsApp(0));
-$('btn-whatsapp-2').addEventListener('click', () => enviarPedidoWhatsApp(1));
+$('btn-revisar-pedido').addEventListener('click', abrirRevisao);
+$('btn-voltar-pedido').addEventListener('click', () => pedidoMostrarStep(1));
+$('btn-confirmar-pedido').addEventListener('click', confirmarPedido);
+$('btn-fechar-pedido-ok').addEventListener('click', () => $('modal-pedido').classList.remove('open'));
 
 // ─── INICIALIZAÇÃO ────────────────────────────
 async function iniciarApp() {
