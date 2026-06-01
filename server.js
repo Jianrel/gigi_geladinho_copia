@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const https = require('https');
 const { db, inicializar } = require('./database');
 
 const app = express();
@@ -100,6 +101,43 @@ app.post('/api/logout', (req, res) => {
 // rota pública — usada na tela de pedido sem login
 app.get('/api/sabores-publico', wrap(async (req, res) => {
   res.json(await db.all('SELECT id, nome, categoria, preco FROM sabores WHERE ativo=1 ORDER BY categoria, nome'));
+}));
+
+// rota pública — proxy para o webhook n8n (credenciais ficam no servidor)
+app.post('/api/pedido-webhook', wrap(async (req, res) => {
+  const { nome, telefone, itens } = req.body;
+  const sabores_geladinho = itens.map(i => `${i.sabor} (${i.qtd}x)`);
+  const payload = JSON.stringify({
+    cliente: { nome, telefone },
+    pedido: { sabores_geladinho }
+  });
+
+  const webhookUrl = process.env.N8N_WEBHOOK_URL ||
+    'https://n8n.residencialpantanal.com/webhook/bfdf7757-6b11-gigi-gel@dinhOs-95b11c6fe13c';
+  const user = process.env.N8N_USER || 'fperin98@gmail.com';
+  const pass = process.env.N8N_PASS || 'Autom@c@o25';
+  const auth = Buffer.from(`${user}:${pass}`).toString('base64');
+  const url = new URL(webhookUrl);
+
+  await new Promise((resolve, reject) => {
+    const options = {
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+        'Authorization': `Basic ${auth}`
+      }
+    };
+    const r = https.request(options, resp => { resp.resume(); resp.on('end', resolve); });
+    r.on('error', reject);
+    r.write(payload);
+    r.end();
+  });
+
+  res.json({ ok: true });
 }));
 
 // ─── MIDDLEWARE AUTH (protege todas as rotas abaixo) ──
