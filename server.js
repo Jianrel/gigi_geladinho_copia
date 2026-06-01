@@ -106,7 +106,7 @@ app.get('/api/sabores-publico', wrap(async (req, res) => {
 // rota pública — proxy para o webhook n8n (credenciais ficam no servidor)
 app.post('/api/pedido-webhook', wrap(async (req, res) => {
   const { nome, telefone, itens } = req.body;
-  const sabores_geladinho = itens.map(i => `${i.sabor} (${i.qtd}x)`);
+  const sabores_geladinho = itens.map(i => `${i.sabor} (${i.qtd}x)`).join('\n');
   // Normalizar telefone: remover formatação e garantir código do país 55
   let telefoneNorm = (telefone || '').replace(/[\s\-\+\(\)]/g, '');
   if (!telefoneNorm.startsWith('55')) telefoneNorm = '55' + telefoneNorm;
