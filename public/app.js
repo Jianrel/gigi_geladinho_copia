@@ -820,8 +820,9 @@ $('btn-salvar-ingrediente').addEventListener('click', async () => {
 
 // ─── RECEITAS ─────────────────────────────────
 async function carregarSaboresReceita() {
-  const sabores = state.sabores.length ? state.sabores : await api('/api/sabores');
-  state.sabores = sabores;
+  const saboresBase = state.sabores.length ? state.sabores : await api('/api/sabores');
+  state.sabores = saboresBase;
+  const sabores = [...saboresBase].sort((a, b) => a.nome.toLowerCase() < b.nome.toLowerCase() ? -1 : 1);
   const sel = $('receita-sabor-select');
   sel.innerHTML = '<option value="">— Selecione um Sabor —</option>';
   sabores.forEach(s => { sel.innerHTML += `<option value="${s.id}">${s.nome}</option>`; });
