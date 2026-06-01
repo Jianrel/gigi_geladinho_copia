@@ -107,10 +107,13 @@ app.get('/api/sabores-publico', wrap(async (req, res) => {
 app.post('/api/pedido-webhook', wrap(async (req, res) => {
   const { nome, telefone, itens } = req.body;
   const sabores_geladinho = itens.map(i => `${i.sabor} (${i.qtd}x)`);
+  // Normalizar telefone: remover formatação e garantir código do país 55
+  let telefoneNorm = (telefone || '').replace(/[\s\-\+\(\)]/g, '');
+  if (!telefoneNorm.startsWith('55')) telefoneNorm = '55' + telefoneNorm;
   // Payload com wrapper "body" para compatibilidade com a configuração do n8n ($json.body.body...)
   const payload = JSON.stringify({
     body: {
-      cliente: { nome, telefone },
+      cliente: { nome, telefone: telefoneNorm },
       pedido: { sabores_geladinho }
     }
   });
