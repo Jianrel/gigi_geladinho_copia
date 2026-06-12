@@ -832,27 +832,35 @@
       <div class="login-logo">
         <img src="/Logo.png" alt="Gigi Geladinho" onerror="this.style.display='none'">
         <h1 class="login-titulo">Gigi Geladinho</h1>
-        <p class="login-sub">Gestão de Estoque</p>
+        <p class="login-sub">Geladinhos Gourmet</p>
       </div>
-      <div class="form-group">
-        <label>Usuário</label>
-        <input type="text" id="login-nome" class="input-field" placeholder="Seu nome" autocomplete="username">
-      </div>
-      <div class="form-group">
-        <label>Senha</label>
-        <input type="password" id="login-senha" class="input-field" placeholder="Sua senha" autocomplete="current-password">
-      </div>
-      <div id="login-erro" class="login-erro" style="display:none;"></div>
-      <button class="btn btn-success btn-full" id="btn-login" style="margin-top:0.5rem;font-size:1.05rem;padding:0.9rem;">
-        Entrar
+
+      <button class="btn btn-pedido btn-full btn-pedido-main" id="btn-abrir-pedido">
+        🛒 Fazer Meu Pedido
       </button>
-      <div class="login-divider"><span>ou</span></div>
-      <button class="btn btn-pedido btn-full" id="btn-abrir-pedido">
-        🛒 Faça seu pedido aqui
-      </button>
+
       <div class="login-footer">
         Desenvolvido por <strong>Jailson Borges Soares</strong><br>
         <a href="#" id="btn-politica-login">Política de Privacidade</a>
+      </div>
+
+      <div class="login-admin-toggle-wrap">
+        <button class="btn-admin-toggle" id="btn-mostrar-login">Login</button>
+      </div>
+
+      <div id="login-admin-panel" class="login-admin-panel">
+        <div class="form-group">
+          <label>Usuário</label>
+          <input type="text" id="login-nome" class="input-field" placeholder="Seu nome" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="login-senha" class="input-field" placeholder="Sua senha" autocomplete="current-password">
+        </div>
+        <div id="login-erro" class="login-erro" style="display:none;"></div>
+        <button class="btn btn-success btn-full" id="btn-login" style="margin-top:0.5rem;font-size:1.05rem;padding:0.9rem;">
+          Entrar
+        </button>
       </div>
     </div>
   </div>

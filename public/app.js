@@ -1183,6 +1183,13 @@ async function fazerLogout() {
   $('login-overlay').style.display = 'flex';
 }
 
+$('btn-mostrar-login').addEventListener('click', function() {
+  const panel = $('login-admin-panel');
+  const aberto = panel.classList.toggle('open');
+  this.textContent = aberto ? 'Fechar' : 'Login';
+  if (aberto) setTimeout(() => $('login-nome').focus(), 80);
+});
+
 $('btn-login').addEventListener('click', fazerLogin);
 $('login-nome').addEventListener('keydown', e => { if (e.key === 'Enter') $('login-senha').focus(); });
 $('login-senha').addEventListener('keydown', e => { if (e.key === 'Enter') fazerLogin(); });

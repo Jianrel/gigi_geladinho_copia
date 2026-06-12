@@ -1020,6 +1020,56 @@ body:has(#login-overlay:not([style*="display: none"])) { overflow: hidden; }
 }
 .btn-pedido:hover { opacity: 0.88; }
 
+/* Botão pedido principal — destaque máximo */
+.btn-pedido-main {
+  font-size: 1.3rem !important;
+  padding: 1.15rem 1.5rem !important;
+  border-radius: 12px !important;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 18px rgba(91, 184, 148, 0.45);
+  animation: pulseVerde 2.8s ease-in-out infinite;
+}
+@keyframes pulseVerde {
+  0%,100% { box-shadow: 0 4px 18px rgba(91,184,148,0.45); }
+  50%      { box-shadow: 0 6px 28px rgba(91,184,148,0.75); }
+}
+
+/* Toggle de login admin */
+.login-admin-toggle-wrap {
+  text-align: center;
+  margin-top: 0.8rem;
+}
+.btn-admin-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0.35rem 1.1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  font-weight: 500;
+}
+.btn-admin-toggle:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Painel de login admin — oculto por padrão, expande com animação */
+.login-admin-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, margin-top 0.35s ease, padding-top 0.35s ease;
+  margin-top: 0;
+  padding-top: 0;
+}
+.login-admin-panel.open {
+  max-height: 400px;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+
 .btn-whatsapp {
   background: #25D366;
   color: #fff;
