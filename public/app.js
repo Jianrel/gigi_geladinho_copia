@@ -35,23 +35,40 @@ const hoje = () => {
   return `${y}-${m}-${day}`;
 };
 
+// Contador de chamadas em andamento — controla a barra de carregamento global.
+let chamadasPendentes = 0;
+function marcarCarregando(ativo) {
+  chamadasPendentes += ativo ? 1 : -1;
+  document.body.classList.toggle('loading', chamadasPendentes > 0);
+}
+
 async function api(path, opts = {}) {
   const token = localStorage.getItem('gigi_token');
-  const res = await fetch(path, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    },
-    ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : undefined
-  });
-  if (res.status === 401) {
-    localStorage.removeItem('gigi_token');
-    localStorage.removeItem('gigi_usuario');
-    $('login-overlay').style.display = 'flex';
+  marcarCarregando(true);
+  try {
+    const res = await fetch(path, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      ...opts,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('gigi_token');
+      localStorage.removeItem('gigi_usuario');
+      $('login-overlay').style.display = 'flex';
+      return null;
+    }
+    const data = await res.json().catch(() => null);
+    if (!res.ok) toast(data?.erro || 'Erro ao comunicar com o servidor', 'error');
+    return data;
+  } catch (err) {
+    toast('Falha de conexão com o servidor', 'error');
     return null;
+  } finally {
+    marcarCarregando(false);
   }
-  return res.json();
 }
 
 function toast(msg, tipo = 'success') {
@@ -86,6 +103,7 @@ function navegar(pagina) {
     dashboard: carregarDashboard,
     lancamento: carregarLancamento,
     estoque: carregarEstoque,
+    pedidos: carregarPedidos,
     relatorios: carregarRelatorios,
     gastos: carregarGastos,
     sabores: carregarSabores,
@@ -1552,6 +1570,60 @@ $('btn-revisar-pedido').addEventListener('click', abrirRevisao);
 $('btn-voltar-pedido').addEventListener('click', () => pedidoMostrarStep(1));
 $('btn-confirmar-pedido').addEventListener('click', confirmarPedido);
 $('btn-fechar-pedido-ok').addEventListener('click', () => $('modal-pedido').classList.remove('open'));
+
+// ─── PEDIDOS ──────────────────────────────────
+const STATUS_LABEL = {
+  novo: 'Novo',
+  em_producao: 'Em produção',
+  entregue: 'Entregue',
+  cancelado: 'Cancelado'
+};
+const STATUS_PROXIMO = { novo: 'em_producao', em_producao: 'entregue' };
+
+async function carregarPedidos() {
+  await renderizarPedidos();
+}
+
+async function renderizarPedidos() {
+  const status = $('pedidos-filtro-status').value;
+  const pedidos = await api(`/api/pedidos${status ? `?status=${status}` : ''}`);
+  const tbody = $('pedidos-tbody');
+  tbody.innerHTML = '';
+  if (!pedidos || !pedidos.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><span class="emoji">📭</span><p>Nenhum pedido encontrado.</p></td></tr>';
+    return;
+  }
+  pedidos.forEach(p => {
+    const dataHora = new Date(p.criado_em).toLocaleString('pt-BR');
+    const itensTexto = p.itens.map(i => `${i.sabor} (${i.qtd}x)`).join(', ');
+    const proximo = STATUS_PROXIMO[p.status];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${dataHora}</td>
+      <td>${p.cliente_nome}</td>
+      <td>${p.telefone}</td>
+      <td>${itensTexto}</td>
+      <td><span class="badge badge-${p.status}">${STATUS_LABEL[p.status] || p.status}</span></td>
+      <td>
+        ${proximo ? `<button class="btn btn-primary btn-sm" onclick="avancarStatusPedido(${p.id}, '${proximo}')">➜ ${STATUS_LABEL[proximo]}</button>` : ''}
+        ${p.status !== 'cancelado' && p.status !== 'entregue' ? `<button class="btn btn-danger btn-sm" onclick="atualizarStatusPedido(${p.id}, 'cancelado')">✖ Cancelar</button>` : ''}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function avancarStatusPedido(id, novoStatus) {
+  await atualizarStatusPedido(id, novoStatus);
+}
+
+async function atualizarStatusPedido(id, novoStatus) {
+  await api(`/api/pedidos/${id}`, { method: 'PUT', body: { status: novoStatus } });
+  toast(`Pedido atualizado para "${STATUS_LABEL[novoStatus]}"`, 'success');
+  await renderizarPedidos();
+}
+
+$('pedidos-filtro-status').addEventListener('change', renderizarPedidos);
 
 // ─── INICIALIZAÇÃO ────────────────────────────
 async function iniciarApp() {

@@ -119,6 +119,15 @@ async function inicializar() {
       valor REAL NOT NULL DEFAULT 0,
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS pedidos (
+      id SERIAL PRIMARY KEY,
+      cliente_nome TEXT NOT NULL,
+      telefone TEXT NOT NULL,
+      itens TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'novo' CHECK (status IN ('novo', 'em_producao', 'entregue', 'cancelado')),
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   const row = await db.get('SELECT COUNT(*) as c FROM sabores');

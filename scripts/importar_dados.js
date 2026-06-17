@@ -5,9 +5,9 @@
 
 const XLSX = require('xlsx');
 const path = require('path');
-const { db, inicializar } = require('./database');
+const { db, inicializar } = require('../database');
 
-const XLSX_PATH = path.join(__dirname, 'Vendas do Gigi 2.0 - 2026.xlsx');
+const XLSX_PATH = path.join(__dirname, '..', 'Vendas do Gigi 2.0 - 2026.xlsx');
 
 const MAPA_SABORES = {
   'Abacate': 'Abacate', 'Abacaxi': 'Abacaxi', 'Açaí': 'Açaí',

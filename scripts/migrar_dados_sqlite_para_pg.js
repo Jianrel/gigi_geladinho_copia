@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
-const { db: pg } = require('./database');
+const { db: pg } = require('../database');
 
 async function migrar() {
   console.log('🚀 Iniciando migração de dados históricos...');
