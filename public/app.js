@@ -11,7 +11,9 @@ const state = {
   receitaCustoTotal: 0,
   receitaRendimento: 20,
   paginaAtual: 'dashboard',
-  charts: {}
+  charts: {},
+  pontoAtual: localStorage.getItem('gigi_ponto') || '1',
+  pontosVenda: []
 };
 
 Chart.register(ChartDataLabels);
@@ -85,6 +87,43 @@ function catLabel(c) {
 
 function destroyChart(id) {
   if (state.charts[id]) { state.charts[id].destroy(); delete state.charts[id]; }
+}
+
+function pontoAtual() { return state.pontoAtual; }
+function isPontoTodos() { return state.pontoAtual === 'todos'; }
+function pontoParam() { return `ponto_id=${state.pontoAtual}`; }
+function pontoNome() {
+  if (isPontoTodos()) return 'Todos';
+  const p = state.pontosVenda.find(pv => pv.id == state.pontoAtual);
+  return p ? p.nome : '';
+}
+
+async function carregarPontosVenda() {
+  state.pontosVenda = await api('/api/pontos-venda') || [];
+  const sel = $('ponto-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  state.pontosVenda.forEach(p => {
+    sel.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+  });
+  sel.innerHTML += '<option value="todos">Todos (consolidado)</option>';
+  sel.value = state.pontoAtual;
+}
+
+function trocarPonto() {
+  const sel = $('ponto-select');
+  state.pontoAtual = sel.value;
+  localStorage.setItem('gigi_ponto', state.pontoAtual);
+  const loaders = {
+    dashboard: carregarDashboard,
+    lancamento: carregarLancamento,
+    estoque: carregarEstoque,
+    pedidos: carregarPedidos,
+    relatorios: carregarRelatorios,
+    gastos: carregarGastos,
+    fluxo: carregarFluxo
+  };
+  if (loaders[state.paginaAtual]) loaders[state.paginaAtual]();
 }
 
 // ─── NAVEGAÇÃO ───────────────────────────────
@@ -167,16 +206,17 @@ async function carregarDashboard() {
   const dtRef = dataEl.value || 'undefined';
 
   // Busca o resumo do dia primeiro para obter a data real do último lançamento
-  const resumoDia = await api(`/api/stats/resumo-dia?data=${dtRef}`);
+  const pp = pontoParam();
+  const resumoDia = await api(`/api/stats/resumo-dia?data=${dtRef}&${pp}`);
   const dataFinal = resumoDia?.data || hoje();
   const refDate = new Date(dataFinal + 'T12:00:00');
   const mes = String(refDate.getMonth() + 1);
   const ano = String(refDate.getFullYear());
 
   const [evolucao, estoqueAtual, resumoMes] = await Promise.all([
-    api('/api/stats/evolucao-mensal'),
-    api('/api/stats/estoque-atual'),
-    api(`/api/stats/resumo-mes?mes=${mes}&ano=${ano}`)
+    api(`/api/stats/evolucao-mensal?${pp}`),
+    api(`/api/stats/estoque-atual?${pp}`),
+    api(`/api/stats/resumo-mes?mes=${mes}&ano=${ano}&${pp}`)
   ]);
   if (isMes && resumoDia.data) {
     // Manter isMes true mas usar os totais que o servidor calculou
@@ -274,11 +314,26 @@ async function carregarLancamento() {
   if (!state.sabores.length) state.sabores = await api('/api/sabores');
   const dataEl = $('lanc-data');
   if (!dataEl.value) dataEl.value = hoje();
+
+  // Modo somente-leitura quando "Todos"
+  const readonly = isPontoTodos();
+  $('btn-lanc-salvar').style.display = readonly ? 'none' : '';
+  const infoEl = document.querySelector('.lancamento-info .info-badge');
+  if (infoEl) {
+    infoEl.innerHTML = readonly
+      ? '<span>⚠️</span> Visão consolidada (todos os pontos). <strong>Selecione um ponto para editar.</strong>'
+      : '<span>💡</span> Preencha os campos de cada sabor. <strong>Vendidos</strong> e <strong>Estoque Final</strong> são calculados automaticamente.';
+  }
+
   await renderizarTabelaLancamento(dataEl.value);
+
+  if (readonly) {
+    document.querySelectorAll('#lancamento-tbody input').forEach(inp => { inp.disabled = true; });
+  }
 }
 
 async function renderizarTabelaLancamento(data) {
-  const lancamentos = await api(`/api/lancamentos?data=${data}`);
+  const lancamentos = await api(`/api/lancamentos?data=${data}&${pontoParam()}`);
   const lancMap = {};
   lancamentos.forEach(l => { lancMap[l.sabor_id] = l; });
 
@@ -381,6 +436,7 @@ function atualizarTotais() {
 }
 
 async function salvarLancamento() {
+  if (isPontoTodos()) return toast('Selecione um ponto de venda para salvar!', 'error');
   const data = $('lanc-data').value;
   if (!data) return toast('Selecione uma data!', 'error');
   const rows = document.querySelectorAll('#lancamento-tbody tr[data-sabor-id]');
@@ -396,6 +452,7 @@ async function salvarLancamento() {
 
     payload.push({
       data, sabor_id: parseInt(row.dataset.saborId),
+      ponto_id: parseInt(pontoAtual()),
       estoque_inicial: ei, fez, furou, quantidade: qtd,
       voltaram: voltaram, estoque_final: estoqueFinalCalculado
     });
@@ -405,7 +462,7 @@ async function salvarLancamento() {
 }
 
 async function abrirHistorico() {
-  const datas = await api('/api/lancamentos/datas');
+  const datas = await api(`/api/lancamentos/datas?${pontoParam()}`);
   const lista = $('historico-lista');
   lista.innerHTML = '';
   if (!datas.length) { lista.innerHTML = '<div class="empty-state"><span class="emoji">📭</span><p>Nenhum lançamento ainda.</p></div>'; }
@@ -431,8 +488,13 @@ $('modal-hist-close').addEventListener('click', () => $('modal-historico').class
 
 // ─── ESTOQUE ─────────────────────────────────
 async function carregarEstoque() {
-  const estoque = await api('/api/stats/estoque-atual');
+  const estoque = await api(`/api/stats/estoque-atual?${pontoParam()}`);
   renderizarEstoque(estoque, 'all');
+
+  // Mostrar/esconder botões de transferência e ajuste
+  const readonly = isPontoTodos();
+  const btnTransferir = $('btn-transferir-estoque');
+  if (btnTransferir) btnTransferir.style.display = readonly ? 'none' : '';
 
   document.querySelectorAll('.filtro-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -448,13 +510,15 @@ function renderizarEstoque(estoque, cat) {
   grid.innerHTML = '';
   const filtrado = cat === 'all' ? estoque : estoque.filter(e => e.categoria === cat);
 
+  const readonly = isPontoTodos();
   filtrado.forEach(e => {
     const nivel = e.estoque_atual === 0 ? 'baixo' : e.estoque_atual <= 5 ? 'medio' : 'alto';
     const card = document.createElement('div');
     card.className = `estoque-card ${nivel}`;
     const dataStr = e.ultima_data ? (() => { const [a,m,d]=e.ultima_data.split('-'); return `${d}/${m}/${a}`; })() : 'Sem dados';
+    const btnEditar = readonly ? '' : `<button class="btn-editar-estoque" title="Ajustar estoque" onclick="abrirAjusteEstoque(${e.id},'${e.nome}',${e.estoque_atual})">✏️</button>`;
     card.innerHTML = `
-      <button class="btn-editar-estoque" title="Ajustar estoque" onclick="abrirAjusteEstoque(${e.id},'${e.nome}',${e.estoque_atual})">✏️</button>
+      ${btnEditar}
       <div class="estoque-nome">${e.nome}</div>
       <div class="estoque-qty ${nivel}">${e.estoque_atual}</div>
       <div class="estoque-label">em estoque</div>
@@ -486,7 +550,7 @@ async function confirmarAjusteEstoque() {
 
   const res = await api('/api/estoque/ajustar', {
     method: 'POST',
-    body: { sabor_id: ajusteSaborId, nova_quantidade, data }
+    body: { sabor_id: ajusteSaborId, nova_quantidade, data, ponto_id: parseInt(pontoAtual()) }
   });
 
   if (res.ok) {
@@ -530,9 +594,10 @@ async function carregarRelatorios() {
 async function gerarRelatorio() {
   const mes = $('rel-mes').value;
   const ano = $('rel-ano').value;
+  const pp = pontoParam();
   const [dados, evolucao] = await Promise.all([
-    api(`/api/stats/resumo-mes?mes=${mes}&ano=${ano}`),
-    api('/api/stats/evolucao-mensal')
+    api(`/api/stats/resumo-mes?mes=${mes}&ano=${ano}&${pp}`),
+    api(`/api/stats/evolucao-mensal?${pp}`)
   ]);
 
   // Cards totais
@@ -672,7 +737,7 @@ async function carregarGastos() {
 async function renderizarGastos() {
   const mes = $('gastos-mes').value;
   const ano = $('gastos-ano').value;
-  const gastos = await api(`/api/gastos?mes=${mes}&ano=${ano}`);
+  const gastos = await api(`/api/gastos?mes=${mes}&ano=${ano}&${pontoParam()}`);
   const total = gastos.reduce((a, g) => a + g.valor, 0);
   const receita = gastos.reduce((a, g) => a + (g.geladinhos_produzidos || 0) * (g.sabor_preco || 0), 0);
   const lucro = receita - total;
@@ -726,7 +791,7 @@ async function salvarGasto() {
   const valor = parseFloat($('gasto-valor').value);
   const geladinhos_produzidos = parseInt($('gasto-qtd').value) || 0;
   if (!data || !valor) return toast('Preencha data e valor!', 'error');
-  await api('/api/gastos', { method: 'POST', body: { data, sabor_id, descricao, valor, geladinhos_produzidos } });
+  await api('/api/gastos', { method: 'POST', body: { data, sabor_id, descricao, valor, geladinhos_produzidos, ponto_id: parseInt(pontoAtual()) } });
   $('modal-gasto').classList.remove('open');
   toast('✅ Gasto registrado!');
   renderizarGastos();
@@ -1025,9 +1090,10 @@ $('btn-salvar-producao').addEventListener('click', async () => {
   const qtd = Math.round(state.receitaRendimento * mult);
   const sabor_nome = $('receita-sabor-select').options[$('receita-sabor-select').selectedIndex].text;
   
+  if (isPontoTodos()) return toast('Selecione um ponto de venda para registrar produção!', 'error');
   await api('/api/producao', {
     method: 'POST',
-    body: { data, sabor_id, descricao: `Produção: ${sabor_nome} (${mult}x)`, valor, geladinhos_produzidos: qtd }
+    body: { data, sabor_id, descricao: `Produção: ${sabor_nome} (${mult}x)`, valor, geladinhos_produzidos: qtd, ponto_id: parseInt(pontoAtual()) }
   });
   
   $('modal-producao').classList.remove('open');
@@ -1272,11 +1338,12 @@ async function buscarFluxo() {
   fluxoPagina = 1;
   const ini = $('fluxo-data-ini').value;
   const fim = $('fluxo-data-fim').value;
+  const pp = pontoParam();
   let url;
   if (ini && fim) {
-    url = `/api/fluxo-caixa?dataInicio=${ini}&dataFim=${fim}`;
+    url = `/api/fluxo-caixa?dataInicio=${ini}&dataFim=${fim}&${pp}`;
   } else {
-    url = `/api/fluxo-caixa?mes=${$('fluxo-mes').value}&ano=${$('fluxo-ano').value}`;
+    url = `/api/fluxo-caixa?mes=${$('fluxo-mes').value}&ano=${$('fluxo-ano').value}&${pp}`;
   }
   fluxoRegistros = await api(url);
   renderizarFluxo();
@@ -1359,7 +1426,8 @@ async function salvarAvulso() {
   const descricao = $('avulso-descricao').value.trim();
   const valor     = parseFloat($('avulso-valor').value);
   if (!data || !descricao || !valor) return toast('Preencha data, descrição e valor!', 'error');
-  await api('/api/fluxo-caixa/avulso', { method: 'POST', body: { data, tipo, categoria, descricao, valor } });
+  if (isPontoTodos()) return toast('Selecione um ponto de venda para lançar!', 'error');
+  await api('/api/fluxo-caixa/avulso', { method: 'POST', body: { data, tipo, categoria, descricao, valor, ponto_id: parseInt(pontoAtual()) } });
   $('modal-avulso').classList.remove('open');
   toast('✅ Lançamento salvo!');
   await buscarFluxo();
@@ -1586,7 +1654,8 @@ async function carregarPedidos() {
 
 async function renderizarPedidos() {
   const status = $('pedidos-filtro-status').value;
-  const pedidos = await api(`/api/pedidos${status ? `?status=${status}` : ''}`);
+  const pp = pontoParam();
+  const pedidos = await api(`/api/pedidos?${pp}${status ? `&status=${status}` : ''}`);
   const tbody = $('pedidos-tbody');
   tbody.innerHTML = '';
   if (!pedidos || !pedidos.length) {
@@ -1625,8 +1694,145 @@ async function atualizarStatusPedido(id, novoStatus) {
 
 $('pedidos-filtro-status').addEventListener('change', renderizarPedidos);
 
+// ─── TRANSFERÊNCIA DE ESTOQUE ─────────────────
+let transfEstoque = [];
+
+async function abrirTransferencia() {
+  if (isPontoTodos()) return toast('Selecione um ponto de venda!', 'error');
+  const origemId = parseInt(pontoAtual());
+  const destino = state.pontosVenda.find(p => p.id !== origemId);
+  if (!destino) return toast('Nenhum ponto de destino disponível', 'error');
+
+  $('transf-origem').textContent = pontoNome();
+  $('transf-destino').textContent = destino.nome;
+  $('transf-destino').dataset.id = destino.id;
+  $('transf-data').value = hoje();
+  $('transf-obs').value = '';
+
+  const estoque = await api(`/api/stats/estoque-atual?ponto_id=${origemId}`);
+  transfEstoque = (estoque || []).filter(e => e.estoque_atual > 0).map(e => ({
+    id: e.id, nome: e.nome, categoria: e.categoria, estoque: e.estoque_atual, qtd: 0
+  }));
+  renderizarTransfSabores();
+  $('modal-transferencia').classList.add('open');
+}
+
+function renderizarTransfSabores() {
+  const lista = $('transf-sabores-lista');
+  lista.innerHTML = '';
+  if (!transfEstoque.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Nenhum sabor com estoque disponível.</div>';
+    return;
+  }
+  transfEstoque.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'transf-sabor-item' + (item.qtd > 0 ? ' transf-selecionado' : '');
+    div.innerHTML = `
+      <div class="transf-sabor-info">
+        <span class="transf-sabor-nome">${item.nome}</span>
+        <span class="transf-sabor-estoque">${item.estoque} un. disponíveis</span>
+      </div>
+      <div class="transf-sabor-ctrl">
+        <button onclick="transfAjustar(${item.id}, -1)">−</button>
+        <span class="transf-qtd-display">${item.qtd}</span>
+        <button onclick="transfAjustar(${item.id}, +1)">+</button>
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+  atualizarResumoTransf();
+}
+
+function transfAjustar(id, delta) {
+  const item = transfEstoque.find(e => e.id === id);
+  if (!item) return;
+  item.qtd = Math.max(0, Math.min(item.estoque, item.qtd + delta));
+  renderizarTransfSabores();
+}
+
+function atualizarResumoTransf() {
+  const selecionados = transfEstoque.filter(e => e.qtd > 0);
+  const resumo = $('transf-resumo');
+  const btnConfirmar = $('btn-confirmar-transf');
+  if (!selecionados.length) {
+    resumo.style.display = 'none';
+    btnConfirmar.disabled = true;
+    btnConfirmar.style.opacity = '0.5';
+    return;
+  }
+  resumo.style.display = 'block';
+  btnConfirmar.disabled = false;
+  btnConfirmar.style.opacity = '1';
+  resumo.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px;">Itens selecionados:</div>
+    ${selecionados.map(s => `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.9rem;"><span>${s.nome}</span><strong>${s.qtd} un.</strong></div>`).join('')}
+    <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;font-weight:800;color:var(--azul);">
+      <span>Total:</span><span>${selecionados.reduce((a, s) => a + s.qtd, 0)} un.</span>
+    </div>
+  `;
+}
+
+async function confirmarTransferencia() {
+  const selecionados = transfEstoque.filter(e => e.qtd > 0);
+  if (!selecionados.length) return toast('Selecione ao menos um sabor!', 'error');
+  const data = $('transf-data').value;
+  if (!data) return toast('Selecione a data!', 'error');
+
+  const ponto_origem_id = parseInt(pontoAtual());
+  const ponto_destino_id = parseInt($('transf-destino').dataset.id);
+  const observacao = $('transf-obs').value.trim();
+
+  let ok = 0, erros = 0;
+  for (const item of selecionados) {
+    const res = await api('/api/transferencias', {
+      method: 'POST',
+      body: { data, sabor_id: item.id, ponto_origem_id, ponto_destino_id, quantidade: item.qtd, observacao }
+    });
+    if (res?.ok) ok++; else erros++;
+  }
+
+  if (erros === 0) {
+    toast(`✅ ${ok} sabor(es) transferido(s) com sucesso!`);
+  } else {
+    toast(`⚠️ ${ok} transferido(s), ${erros} com erro.`, 'error');
+  }
+  $('modal-transferencia').classList.remove('open');
+  carregarEstoque();
+}
+
+async function abrirHistoricoTransferencias() {
+  const transfs = await api(`/api/transferencias?${pontoParam()}`);
+  const lista = $('transf-historico-lista');
+  lista.innerHTML = '';
+  if (!transfs || !transfs.length) {
+    lista.innerHTML = '<div class="empty-state"><span class="emoji">📭</span><p>Nenhuma transferência registrada.</p></div>';
+  } else {
+    transfs.forEach(t => {
+      const [a, m, d] = t.data.split('-');
+      const div = document.createElement('div');
+      div.className = 'historico-item';
+      div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <strong>${t.sabor_nome}</strong> — ${t.quantidade} un.
+            <div style="font-size:0.85rem;color:var(--text-muted);">${t.ponto_origem_nome} → ${t.ponto_destino_nome}</div>
+            ${t.observacao ? `<div style="font-size:0.8rem;color:var(--azul-mid);margin-top:2px;">${t.observacao}</div>` : ''}
+          </div>
+          <div style="text-align:right;font-size:0.85rem;color:var(--text-muted);">
+            📅 ${d}/${m}/${a}
+            ${t.usuario ? `<br>👤 ${t.usuario}` : ''}
+          </div>
+        </div>
+      `;
+      lista.appendChild(div);
+    });
+  }
+  $('modal-transf-historico').classList.add('open');
+}
+
 // ─── INICIALIZAÇÃO ────────────────────────────
 async function iniciarApp() {
+  await carregarPontosVenda();
   state.sabores = await api('/api/sabores');
   carregarDashboard();
 }
@@ -1645,5 +1851,6 @@ async function iniciarApp() {
   state.sabores = await res.json();
   $('sidebar-username').textContent = localStorage.getItem('gigi_usuario') || '';
   $('login-overlay').style.display = 'none';
+  await carregarPontosVenda();
   carregarDashboard();
 })();

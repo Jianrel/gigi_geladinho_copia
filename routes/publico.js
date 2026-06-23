@@ -22,7 +22,7 @@ router.post('/pedido-webhook', wrap(async (req, res) => {
 
   // 1. Salva o pedido no banco primeiro — fica registrado mesmo se o webhook falhar.
   const pedido = await db.run(
-    'INSERT INTO pedidos (cliente_nome, telefone, itens) VALUES (?,?,?)',
+    'INSERT INTO pedidos (cliente_nome, telefone, itens, ponto_id) VALUES (?,?,?,1)',
     [nome, telefoneNorm, JSON.stringify(itens)]
   );
 

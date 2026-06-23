@@ -4,7 +4,8 @@ const { db } = require('../database');
 const wrap = require('../utils/wrap');
 
 router.get('/', wrap(async (req, res) => {
-  const { mes, ano, dataInicio, dataFim } = req.query;
+  const { mes, ano, dataInicio, dataFim, ponto_id } = req.query;
+  const filtroPonto = ponto_id && ponto_id !== 'todos';
 
   let whereVendas, whereGastos, whereAvulsos, p;
   if (dataInicio && dataFim) {
@@ -19,7 +20,13 @@ router.get('/', wrap(async (req, res) => {
     p = [parseInt(mes), parseInt(ano)];
   }
 
-  // Entradas: vendas dos lançamentos
+  if (filtroPonto) {
+    whereVendas  += ' AND l.ponto_id = ?';
+    whereGastos  += ' AND g.ponto_id = ?';
+    whereAvulsos += ' AND ponto_id = ?';
+  }
+  const pParams = filtroPonto ? [...p, parseInt(ponto_id)] : [...p];
+
   const vendas = await db.all(`
     SELECT l.data, s.nome as descricao, 'entrada' as tipo, 'Vendas' as categoria,
       GREATEST(0, CASE WHEN l.quantidade > 0 THEN (l.quantidade - l.voltaram)
@@ -28,32 +35,27 @@ router.get('/', wrap(async (req, res) => {
     WHERE ${whereVendas}
       AND GREATEST(0, CASE WHEN l.quantidade > 0 THEN (l.quantidade - l.voltaram)
         ELSE (l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) > 0
-  `, p);
+  `, pParams);
 
-  // Saídas: gastos de produção
   const gastos = await db.all(`
     SELECT g.data, COALESCE('Produção: ' || s.nome, g.descricao, 'Gasto avulso') as descricao,
       'saida' as tipo, 'Produção' as categoria, g.valor
     FROM gastos_producao g LEFT JOIN sabores s ON g.sabor_id = s.id
     WHERE ${whereGastos}
-  `, p);
+  `, pParams);
 
-  // Lançamentos avulsos
   const avulsos = await db.all(`
     SELECT id, data, descricao, tipo, categoria, valor
     FROM fluxo_caixa_avulso
     WHERE ${whereAvulsos}
-  `, p);
+  `, pParams);
 
-  // Combinar e ordenar por data
-  // Ordenar do mais antigo para o mais novo para calcular saldo corretamente
   const todos = [
     ...vendas.map(r => ({ ...r, origem: 'lancamento' })),
     ...gastos.map(r => ({ ...r, origem: 'gasto' })),
     ...avulsos.map(r => ({ ...r, origem: 'avulso' }))
   ].sort((a, b) => a.data.localeCompare(b.data));
 
-  // Calcular saldo acumulado (do mais antigo ao mais novo)
   let saldo = 0;
   todos.forEach(r => {
     r.valor = parseFloat(r.valor) || 0;
@@ -61,16 +63,16 @@ router.get('/', wrap(async (req, res) => {
     r.saldo = Math.round(saldo * 100) / 100;
   });
 
-  // Inverter para exibir o mais recente primeiro
   res.json(todos.reverse());
 }));
 
 router.post('/avulso', wrap(async (req, res) => {
-  const { data, descricao, tipo, categoria, valor } = req.body;
+  const { data, descricao, tipo, categoria, valor, ponto_id } = req.body;
   if (!data || !descricao || !tipo || !valor) return res.status(400).json({ erro: 'Campos obrigatórios: data, descricao, tipo, valor' });
+  const pontoIdFinal = ponto_id || 1;
   const r = await db.run(
-    'INSERT INTO fluxo_caixa_avulso (data,descricao,tipo,categoria,valor) VALUES (?,?,?,?,?)',
-    [data, descricao, tipo, categoria || null, parseFloat(valor)]
+    'INSERT INTO fluxo_caixa_avulso (data,descricao,tipo,categoria,valor,ponto_id) VALUES (?,?,?,?,?,?)',
+    [data, descricao, tipo, categoria || null, parseFloat(valor), pontoIdFinal]
   );
   res.json({ id: r.lastID });
 }));
