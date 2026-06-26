@@ -128,53 +128,7 @@ async function inicializar() {
       status TEXT NOT NULL DEFAULT 'novo' CHECK (status IN ('novo', 'em_producao', 'entregue', 'cancelado')),
       criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
-
-    CREATE TABLE IF NOT EXISTS pontos_venda (
-      id SERIAL PRIMARY KEY,
-      nome TEXT NOT NULL UNIQUE,
-      ativo INTEGER NOT NULL DEFAULT 1,
-      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS transferencias_estoque (
-      id SERIAL PRIMARY KEY,
-      data TEXT NOT NULL,
-      sabor_id INTEGER NOT NULL REFERENCES sabores(id),
-      ponto_origem_id INTEGER NOT NULL REFERENCES pontos_venda(id),
-      ponto_destino_id INTEGER NOT NULL REFERENCES pontos_venda(id),
-      quantidade INTEGER NOT NULL CHECK (quantidade > 0),
-      observacao TEXT,
-      usuario TEXT,
-      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      CHECK (ponto_origem_id != ponto_destino_id)
-    );
   `);
-
-  // Adicionar ponto_id nas tabelas existentes (idempotente)
-  const addColumns = [
-    "ALTER TABLE lancamentos ADD COLUMN IF NOT EXISTS ponto_id INTEGER NOT NULL DEFAULT 1 REFERENCES pontos_venda(id)",
-    "ALTER TABLE gastos_producao ADD COLUMN IF NOT EXISTS ponto_id INTEGER NOT NULL DEFAULT 1 REFERENCES pontos_venda(id)",
-    "ALTER TABLE fluxo_caixa_avulso ADD COLUMN IF NOT EXISTS ponto_id INTEGER NOT NULL DEFAULT 1 REFERENCES pontos_venda(id)",
-    "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS ponto_id INTEGER NOT NULL DEFAULT 1 REFERENCES pontos_venda(id)"
-  ];
-  for (const sql of addColumns) {
-    try { await db.exec(sql); } catch(e) { /* coluna já existe */ }
-  }
-
-  // Atualizar constraint UNIQUE de lancamentos para incluir ponto_id
-  try {
-    await db.exec("ALTER TABLE lancamentos DROP CONSTRAINT IF EXISTS lancamentos_data_sabor_id_key");
-    await db.exec("ALTER TABLE lancamentos DROP CONSTRAINT IF EXISTS lancamentos_data_sabor_ponto_key");
-    await db.exec("ALTER TABLE lancamentos ADD CONSTRAINT lancamentos_data_sabor_ponto_key UNIQUE(data, sabor_id, ponto_id)");
-  } catch(e) { /* constraint já existe */ }
-
-  // Seed pontos de venda
-  const pontosExistem = await db.get('SELECT COUNT(*) as c FROM pontos_venda');
-  if (parseInt(pontosExistem.c) === 0) {
-    await db.run("INSERT INTO pontos_venda (nome) VALUES (?)", ['Gigi']);
-    await db.run("INSERT INTO pontos_venda (nome) VALUES (?)", ['Jajá']);
-    console.log('✅ Pontos de venda cadastrados (Gigi, Jajá)!');
-  }
 
   const row = await db.get('SELECT COUNT(*) as c FROM sabores');
   if (parseInt(row.c) === 0) {

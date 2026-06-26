@@ -29,8 +29,6 @@ app.use('/api/estoque', require('./routes/estoque'));
 app.use('/api/importar', require('./routes/importacao'));
 app.use('/api/fluxo-caixa', require('./routes/fluxoCaixa'));
 app.use('/api/pedidos', require('./routes/pedidos'));
-app.use('/api/pontos-venda', require('./routes/pontosVenda'));
-app.use('/api/transferencias', require('./routes/transferencias'));
 
 // ─── EXPORTAR PARA VERCEL ─────────────────────────
 // Em ambiente local, você ainda pode rodar com 'node server.js'
