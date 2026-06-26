@@ -26,6 +26,7 @@ router.get('/', wrap(async (req, res) => {
         ELSE (l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) * s.preco::numeric as valor
     FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id
     WHERE ${whereVendas}
+      AND l.data < '2026-07-01'
       AND GREATEST(0, CASE WHEN l.quantidade > 0 THEN (l.quantidade - l.voltaram)
         ELSE (l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) > 0
   `, p);
