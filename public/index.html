@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gigi Geladinho Gourmet — Gestão de Estoque</title>
-  <meta name="description" content="Sistema de gerenciamento de estoque para Gigi Geladinho Gourmet">
+  <title>Geladinho Gourmet — Gestão de Estoque</title>
+  <meta name="description" content="Sistema de gerenciamento de estoque">
   <link rel="icon" type="image/png" href="/Logo.png">
   <link rel="apple-touch-icon" href="/Logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,8 +21,8 @@
   <!-- SIDEBAR -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <img src="/Logo.png" alt="Gigi Geladinho Gourmet" class="sidebar-logo">
-      <span class="sidebar-brand">Gigi Geladinho</span>
+      <img src="/Logo.png" alt="Geladinho Gourmet" class="sidebar-logo">
+      <span class="sidebar-brand" id="sidebar-brand">Geladinho</span>
     </div>
     <ul class="sidebar-menu">
       <li><a href="#" class="nav-item active" data-page="dashboard" id="nav-dashboard">
@@ -783,7 +783,7 @@
       <div style="font-size:0.93rem;color:var(--text);line-height:1.75;display:flex;flex-direction:column;gap:1rem;">
         <p><strong>Última atualização:</strong> maio de 2026</p>
 
-        <p>A <strong>Gigi Geladinho Gourmet</strong> valoriza a privacidade dos seus usuários e clientes. Esta política descreve como coletamos, usamos e protegemos as informações fornecidas ao utilizar este sistema.</p>
+        <p>A <strong id="politica-nome-loja">Geladinho Gourmet</strong> valoriza a privacidade dos seus usuários e clientes. Esta política descreve como coletamos, usamos e protegemos as informações fornecidas ao utilizar este sistema.</p>
 
         <div>
           <p style="font-weight:700;color:var(--azul);margin-bottom:0.3rem;">1. Informações coletadas</p>
@@ -868,9 +868,9 @@
   <div id="login-overlay">
     <div class="login-box">
       <div class="login-logo">
-        <img src="/Logo.png" alt="Gigi Geladinho" onerror="this.style.display='none'">
-        <h1 class="login-titulo">Gigi Geladinho</h1>
-        <p class="login-sub">Geladinhos Gourmet</p>
+        <img src="/Logo.png" alt="Geladinho Gourmet" onerror="this.style.display='none'">
+        <h1 class="login-titulo" id="login-titulo">Geladinho</h1>
+        <p class="login-sub" id="login-sub">Geladinhos Gourmet</p>
       </div>
 
       <button class="btn btn-pedido btn-full btn-pedido-main" id="btn-abrir-pedido">
@@ -963,7 +963,7 @@
         <div id="pedido-resultado-ok" style="display:none;">
           <div style="font-size:3rem;margin-bottom:0.8rem;">✅</div>
           <div style="font-size:1.1rem;font-weight:800;color:var(--verde-dark);margin-bottom:0.4rem;">Pedido enviado com sucesso!</div>
-          <div style="color:var(--text-muted);font-size:0.92rem;">Aguarde o contato do Gigi Geladinho pelo WhatsApp.</div>
+          <div style="color:var(--text-muted);font-size:0.92rem;">Aguarde o contato pelo WhatsApp.</div>
           <button class="btn btn-success" id="btn-fechar-pedido-ok" style="margin-top:1.5rem;padding:0.7rem 2rem;">Fechar</button>
         </div>
         <div id="pedido-resultado-erro" style="display:none;">
@@ -971,7 +971,7 @@
           <div style="font-size:1rem;font-weight:700;color:var(--coral);margin-bottom:0.4rem;">Não foi possível enviar o pedido automaticamente.</div>
           <div style="color:var(--text-muted);font-size:0.88rem;margin-bottom:1.2rem;">Tente enviar diretamente pelo WhatsApp:</div>
           <button class="btn btn-whatsapp btn-full" id="btn-whatsapp-fallback">
-            📲 Enviar pelo WhatsApp do Gigi
+            📲 Enviar pelo WhatsApp
           </button>
         </div>
       </div>

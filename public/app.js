@@ -11,7 +11,8 @@ const state = {
   receitaCustoTotal: 0,
   receitaRendimento: 20,
   paginaAtual: 'dashboard',
-  charts: {}
+  charts: {},
+  config: { nomeLoja: '', subtituloLoja: '', waNumero: '' }
 };
 
 Chart.register(ChartDataLabels);
@@ -1409,7 +1410,6 @@ $('btn-fluxo-limpar').addEventListener('click', () => {
 $('fluxo-filtro-cat').addEventListener('change', () => { fluxoPagina = 1; renderizarFluxo(); });
 
 // ─── PEDIDO CLIENTE ───────────────────────────
-const WA_GIGI = '5563992657531';
 let pedidoCarrinho = {};
 
 function mascaraTelefone(e) {
@@ -1553,7 +1553,7 @@ async function confirmarPedido() {
     const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
     const linhas = itens.map(i => `- ${i.nome} (${i.qtd}x)`).join('\n');
     const msg = `Ola! Gostaria de fazer um pedido.\n\nNome: ${nome}\nTelefone: ${telefone}\n\n${linhas}`;
-    $('btn-whatsapp-fallback').onclick = () => window.open(`https://wa.me/${WA_GIGI}?text=${encodeURIComponent(msg)}`, '_blank');
+    $('btn-whatsapp-fallback').onclick = () => window.open(`https://wa.me/${state.config.waNumero}?text=${encodeURIComponent(msg)}`, '_blank');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Confirmar e Enviar Pedido';
@@ -1626,15 +1626,31 @@ async function atualizarStatusPedido(id, novoStatus) {
 $('pedidos-filtro-status').addEventListener('change', renderizarPedidos);
 
 // ─── INICIALIZAÇÃO ────────────────────────────
+async function carregarConfig() {
+  try {
+    state.config = await fetch('/api/config').then(r => r.json());
+  } catch { /* usa defaults */ }
+  const nome = state.config.nomeLoja || 'Geladinho';
+  const sub = state.config.subtituloLoja || 'Geladinhos Gourmet';
+  document.title = `${nome} Gourmet — Gestão de Estoque`;
+  const el = id => { const e = $(id); if (e) e.textContent = nome; };
+  el('sidebar-brand');
+  el('login-titulo');
+  const subEl = $('login-sub');
+  if (subEl) subEl.textContent = sub;
+  const polEl = $('politica-nome-loja');
+  if (polEl) polEl.textContent = `${nome} Gourmet`;
+}
+
 async function iniciarApp() {
   state.sabores = await api('/api/sabores');
   carregarDashboard();
 }
 
 (async function init() {
+  await carregarConfig();
   const token = localStorage.getItem('gigi_token');
   if (!token) { $('login-overlay').style.display = 'flex'; return; }
-  // Valida token existente
   const res = await fetch('/api/sabores', { headers: { 'Authorization': `Bearer ${token}` } });
   if (res.status === 401) {
     localStorage.removeItem('gigi_token');

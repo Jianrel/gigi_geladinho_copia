@@ -5,6 +5,14 @@ const https = require('https');
 const { db } = require('../database');
 const wrap = require('../utils/wrap');
 
+router.get('/config', (req, res) => {
+  res.json({
+    nomeLoja: process.env.NOME_LOJA || 'Geladinho Gourmet',
+    subtituloLoja: process.env.SUBTITULO_LOJA || 'Geladinhos Gourmet',
+    waNumero: process.env.WA_NUMERO || ''
+  });
+});
+
 router.get('/sabores-publico', wrap(async (req, res) => {
   res.json(await db.all('SELECT id, nome, categoria, preco FROM sabores WHERE ativo=1 ORDER BY categoria, nome'));
 }));
