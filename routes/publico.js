@@ -6,10 +6,12 @@ const { db } = require('../database');
 const wrap = require('../utils/wrap');
 
 router.get('/config', (req, res) => {
+  const custo = process.env.CUSTO_FORNECEDOR;
   res.json({
     nomeLoja: process.env.NOME_LOJA || 'Geladinho Gourmet',
     subtituloLoja: process.env.SUBTITULO_LOJA || 'Geladinhos Gourmet',
-    waNumero: process.env.WA_NUMERO || ''
+    waNumero: process.env.WA_NUMERO || '',
+    custoFornecedor: custo ? parseFloat(custo) : null
   });
 });
 

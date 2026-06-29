@@ -117,4 +117,50 @@ router.get('/evolucao-mensal', wrap(async (req, res) => {
     GROUP BY TO_CHAR(l.data::date, 'YYYY-MM') ORDER BY mes`));
 }));
 
+router.get('/resumo-semanal', wrap(async (req, res) => {
+  let ref = req.query.data ? new Date(req.query.data + 'T12:00:00') : new Date();
+  const day = ref.getDay();
+  // Calcular segunda-feira da semana (day 0=dom, 1=seg)
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const seg = new Date(ref);
+  seg.setDate(ref.getDate() + diffToMon);
+  const sex = new Date(seg);
+  sex.setDate(seg.getDate() + 4);
+
+  const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const dataInicio = fmtDate(seg);
+  const dataFim = fmtDate(sex);
+
+  const result = await db.get(`
+    SELECT
+      COALESCE(SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END), 0) as vendidos,
+      COUNT(DISTINCT l.data) as dias
+    FROM lancamentos l
+    WHERE l.data >= ? AND l.data <= ?`, [dataInicio, dataFim]);
+
+  const vendidos = parseInt(result?.vendidos || 0);
+  const custoUnit = parseFloat(process.env.CUSTO_FORNECEDOR || 0);
+
+  const porDia = await db.all(`
+    SELECT l.data,
+      SUM(CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) as vendidos,
+      SUM((CASE WHEN l.quantidade > 0 THEN GREATEST(0, l.quantidade - l.voltaram) ELSE GREATEST(0, l.estoque_inicial + l.fez - l.furou - l.voltaram - l.estoque_final) END) * s.preco) as receita
+    FROM lancamentos l JOIN sabores s ON l.sabor_id = s.id
+    WHERE l.data >= ? AND l.data <= ?
+    GROUP BY l.data ORDER BY l.data`, [dataInicio, dataFim]);
+
+  const receita = porDia.reduce((a, d) => a + (parseFloat(d.receita) || 0), 0);
+
+  res.json({
+    dataInicio,
+    dataFim,
+    vendidos,
+    custoFornecedor: vendidos * custoUnit,
+    receita,
+    lucro: receita - (vendidos * custoUnit),
+    dias: parseInt(result?.dias || 0),
+    porDia
+  });
+}));
+
 module.exports = router;

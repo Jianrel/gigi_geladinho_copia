@@ -264,7 +264,99 @@ async function carregarDashboard() {
     });
   }
 
+  // Resumo semanal (só aparece quando custoFornecedor está definido)
+  if (state.config.custoFornecedor) {
+    await carregarResumoSemanal();
+  }
+}
 
+let resumoSemanalRef = null;
+
+async function carregarResumoSemanal(dataRef) {
+  const el = $('dash-resumo-semanal');
+  if (!state.config.custoFornecedor) { el.style.display = 'none'; return; }
+
+  const url = dataRef ? `/api/stats/resumo-semanal?data=${dataRef}` : '/api/stats/resumo-semanal';
+  const dados = await api(url);
+  if (!dados) return;
+
+  resumoSemanalRef = dados.dataInicio;
+  const custo = state.config.custoFornecedor;
+  const [ai, mi, di] = dados.dataInicio.split('-');
+  const [af, mf, df] = dados.dataFim.split('-');
+  const lucroClass = dados.lucro >= 0 ? 'card-green' : 'card-red';
+  const lucroIcon = dados.lucro >= 0 ? '📈' : '📉';
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="chart-card chart-card-wide" style="margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <h2 style="margin:0;">📦 Resumo da Semana — Fornecedor</h2>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-outline" onclick="navSemana(-1)" style="padding:5px 12px;">◀ Anterior</button>
+          <span style="font-weight:700;color:var(--azul);font-size:0.9rem;">${di}/${mi} a ${df}/${mf}</span>
+          <button class="btn btn-outline" onclick="navSemana(1)" style="padding:5px 12px;">Próxima ▶</button>
+          <button class="btn btn-primary" onclick="navSemana(0)" style="padding:5px 12px;">Atual</button>
+        </div>
+      </div>
+      <div class="cards-grid">
+        <div class="card card-blue">
+          <div class="card-icon">🍧</div>
+          <div class="card-info">
+            <div class="card-value">${fmtNum(dados.vendidos)}</div>
+            <div class="card-label">Vendidos na Semana</div>
+          </div>
+        </div>
+        <div class="card card-red">
+          <div class="card-icon">💸</div>
+          <div class="card-info">
+            <div class="card-value">${fmt(dados.custoFornecedor)}</div>
+            <div class="card-label">Pagar ao Fornecedor</div>
+          </div>
+        </div>
+        <div class="card card-yellow">
+          <div class="card-icon">💵</div>
+          <div class="card-info">
+            <div class="card-value">${fmt(dados.receita)}</div>
+            <div class="card-label">Receita Bruta</div>
+          </div>
+        </div>
+        <div class="card ${lucroClass}">
+          <div class="card-icon">${lucroIcon}</div>
+          <div class="card-info">
+            <div class="card-value">${fmt(dados.lucro)}</div>
+            <div class="card-label">Lucro da Semana</div>
+          </div>
+        </div>
+      </div>
+      ${dados.porDia.length ? `
+      <div style="margin-top:12px;">
+        <table class="data-table" style="font-size:0.88rem;">
+          <thead><tr><th>Dia</th><th>Vendidos</th><th>Receita</th><th>Custo Fornecedor</th><th>Lucro</th></tr></thead>
+          <tbody>
+            ${dados.porDia.map(d => {
+              const v = parseInt(d.vendidos) || 0;
+              const r = parseFloat(d.receita) || 0;
+              const c = v * custo;
+              const l = r - c;
+              const [a,m,dd] = d.data.split('-');
+              return `<tr><td>${dd}/${m}</td><td>${v}</td><td>${fmt(r)}</td><td class="text-red">${fmt(c)}</td><td class="fw-bold ${l>=0?'text-green':'text-red'}">${fmt(l)}</td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function navSemana(dir) {
+  if (dir === 0) { resumoSemanalRef = null; carregarResumoSemanal(); return; }
+  const ref = new Date(resumoSemanalRef + 'T12:00:00');
+  ref.setDate(ref.getDate() + (dir * 7));
+  const y = ref.getFullYear();
+  const m = String(ref.getMonth()+1).padStart(2,'0');
+  const d = String(ref.getDate()).padStart(2,'0');
+  carregarResumoSemanal(`${y}-${m}-${d}`);
 }
 
 $('dash-data').addEventListener('change', carregarDashboard);
