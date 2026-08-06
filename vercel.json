@@ -2,14 +2,14 @@
   "version": 2,
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "gigigeladinho.vercel.app"
         }
       ],
-      "destination": "https://gigigeladinho.com.br/:path*",
+      "destination": "https://gigigeladinho.com.br/$1",
       "permanent": true
     }
   ],
