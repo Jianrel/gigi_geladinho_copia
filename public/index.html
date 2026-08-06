@@ -913,17 +913,44 @@
         <button class="modal-close" id="modal-pedido-close">✕</button>
       </div>
 
-      <!-- ETAPA 1: seleção -->
-      <div id="pedido-step-1">
-        <div style="display:flex;gap:0.8rem;margin-bottom:1rem;">
-          <div class="form-group" style="flex:1;margin:0;">
-            <label>Seu nome</label>
-            <input type="text" id="pedido-nome" class="input-field" placeholder="Como podemos te chamar?">
-          </div>
-          <div class="form-group" style="flex:1;margin:0;">
-            <label>Seu WhatsApp</label>
-            <input type="tel" id="pedido-telefone" class="input-field" placeholder="(63) 99999-9999">
-          </div>
+      <!-- ETAPA 0: WhatsApp -->
+      <div id="pedido-step-0">
+        <div class="form-group" style="margin-bottom:0.8rem;">
+          <label style="font-weight:600;color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:.05em;">Seu WhatsApp</label>
+          <input type="tel" id="pedido-telefone" class="input-field" placeholder="(63) 99999-9999" style="font-size:1.05rem;">
+        </div>
+        <p id="step0-erro" style="display:none;color:var(--coral);font-size:0.88rem;margin-top:0;margin-bottom:0.8rem;"></p>
+        <button class="btn btn-success btn-full" id="btn-verificar-telefone" style="font-size:1rem;padding:0.85rem;">
+          Continuar →
+        </button>
+      </div>
+
+      <!-- ETAPA 1-RETORNO: cliente recorrente -->
+      <div id="pedido-step-1-retorno" style="display:none;">
+        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:1.2rem;margin-bottom:1rem;text-align:center;">
+          <div style="font-size:1.8rem;margin-bottom:0.4rem;">👋</div>
+          <div id="retorno-saudacao" style="font-size:1.15rem;font-weight:800;color:var(--azul);margin-bottom:0.3rem;"></div>
+          <div style="color:var(--text-muted);font-size:0.88rem;">Encontrei seu histórico!</div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1.2rem;">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:0.5rem;">Último pedido</div>
+          <div id="retorno-itens-texto" style="color:var(--text);font-size:0.95rem;line-height:1.6;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.6rem;">
+          <button class="btn btn-success btn-full" onclick="repetirPedido()" style="font-size:1rem;padding:0.85rem;">
+            🔁 Repetir esse pedido
+          </button>
+          <button class="btn btn-full" onclick="fazerNovoPedido()" style="background:var(--bg);border:1px solid var(--border);font-size:0.95rem;padding:0.8rem;">
+            Escolher outros sabores
+          </button>
+        </div>
+      </div>
+
+      <!-- ETAPA 1-NOVO: nome + seleção de sabores -->
+      <div id="pedido-step-1-novo" style="display:none;">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label style="font-weight:600;color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:.05em;">Seu nome</label>
+          <input type="text" id="pedido-nome" class="input-field" placeholder="Como podemos te chamar?" style="font-size:1.05rem;">
         </div>
         <div style="margin:0.5rem 0;font-weight:700;color:var(--azul);">Escolha os sabores:</div>
         <div id="pedido-sabores-lista" style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;"></div>

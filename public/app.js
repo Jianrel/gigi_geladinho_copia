@@ -1503,6 +1503,8 @@ $('fluxo-filtro-cat').addEventListener('change', () => { fluxoPagina = 1; render
 
 // ─── PEDIDO CLIENTE ───────────────────────────
 let pedidoCarrinho = {};
+let _pedidoSaboresPublicos = [];
+let _pedidoRetorno = null;
 
 function mascaraTelefone(e) {
   let v = e.target.value.replace(/\D/g, '').slice(0, 11);
@@ -1513,45 +1515,93 @@ function mascaraTelefone(e) {
 }
 $('pedido-telefone').addEventListener('input', mascaraTelefone);
 
+function pedidoMostrarStep(step) {
+  ['0', '1-retorno', '1-novo', '2', '3'].forEach(s => {
+    const el = $(`pedido-step-${s}`);
+    if (el) el.style.display = s === String(step) ? '' : 'none';
+  });
+}
+
 async function abrirModalPedido() {
   pedidoCarrinho = {};
+  _pedidoRetorno = null;
   $('pedido-nome').value = '';
   $('pedido-telefone').value = '';
-  $('pedido-carrinho').style.display = 'none';
-  pedidoMostrarStep(1);
+  $('step0-erro').style.display = 'none';
+  pedidoMostrarStep('0');
   $('modal-pedido').classList.add('open');
-  const lista = $('pedido-sabores-lista');
-  lista.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Carregando sabores...</div>';
   try {
     const sabores = await fetch('/api/sabores-publico').then(r => r.json());
-    const sorted = [...sabores].sort((a, b) => a.nome.toLowerCase() < b.nome.toLowerCase() ? -1 : 1);
-    lista.innerHTML = '';
-    sorted.forEach(s => {
-      pedidoCarrinho[s.id] = { nome: s.nome, preco: s.preco, qtd: 0 };
-      const div = document.createElement('div');
-      div.className = 'sabor-item';
-      div.innerHTML = `
-        <div class="sabor-item-info">
-          <span class="sabor-item-nome">${s.nome}</span>
-          <span class="sabor-item-preco">${fmt(s.preco)} cada</span>
-        </div>
-        <div class="sabor-item-ctrl">
-          <button onclick="pedidoAjustar(${s.id}, -1)">−</button>
-          <span class="qtd-display" id="pedido-qtd-${s.id}">0</span>
-          <button onclick="pedidoAjustar(${s.id}, +1)">+</button>
-        </div>
-      `;
-      lista.appendChild(div);
-    });
+    _pedidoSaboresPublicos = [...sabores].sort((a, b) => a.nome.toLowerCase() < b.nome.toLowerCase() ? -1 : 1);
+  } catch { _pedidoSaboresPublicos = []; }
+}
+
+async function verificarTelefone() {
+  const tel = $('pedido-telefone').value.trim();
+  const erroEl = $('step0-erro');
+  if (tel.replace(/\D/g, '').length < 10) {
+    erroEl.textContent = 'Telefone inválido! Use o formato (XX) XXXXX-XXXX';
+    erroEl.style.display = '';
+    $('pedido-telefone').focus();
+    return;
+  }
+  erroEl.style.display = 'none';
+  const btn = $('btn-verificar-telefone');
+  btn.disabled = true;
+  btn.textContent = 'Verificando...';
+  try {
+    const data = await fetch(`/api/cliente-historico?telefone=${encodeURIComponent(tel)}`).then(r => r.json());
+    if (data.encontrado) {
+      _pedidoRetorno = data;
+      $('retorno-saudacao').textContent = `Olá, ${data.nome}!`;
+      $('retorno-itens-texto').textContent = data.ultimoPedido.itens.map(i => `${i.qtd}x ${i.sabor}`).join(', ');
+      pedidoMostrarStep('1-retorno');
+    } else {
+      _pedidoRetorno = null;
+      $('pedido-nome').value = '';
+      await pedidoRenderizarSabores();
+      pedidoMostrarStep('1-novo');
+    }
   } catch {
-    lista.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--coral)">Erro ao carregar sabores. Tente novamente.</div>';
+    _pedidoRetorno = null;
+    await pedidoRenderizarSabores();
+    pedidoMostrarStep('1-novo');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Continuar →';
   }
 }
 
-function pedidoMostrarStep(n) {
-  [1, 2, 3].forEach(i => {
-    const el = $(`pedido-step-${i}`);
-    if (el) el.style.display = i === n ? '' : 'none';
+async function pedidoRenderizarSabores() {
+  const lista = $('pedido-sabores-lista');
+  if (!lista) return;
+  if (!_pedidoSaboresPublicos.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Carregando sabores...</div>';
+    try {
+      const sabores = await fetch('/api/sabores-publico').then(r => r.json());
+      _pedidoSaboresPublicos = [...sabores].sort((a, b) => a.nome.toLowerCase() < b.nome.toLowerCase() ? -1 : 1);
+    } catch {
+      lista.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--coral)">Erro ao carregar sabores. Tente novamente.</div>';
+      return;
+    }
+  }
+  lista.innerHTML = '';
+  _pedidoSaboresPublicos.forEach(s => {
+    if (!pedidoCarrinho[s.id]) pedidoCarrinho[s.id] = { nome: s.nome, preco: s.preco, qtd: 0 };
+    const div = document.createElement('div');
+    div.className = 'sabor-item';
+    div.innerHTML = `
+      <div class="sabor-item-info">
+        <span class="sabor-item-nome">${s.nome}</span>
+        <span class="sabor-item-preco">${fmt(s.preco)} cada</span>
+      </div>
+      <div class="sabor-item-ctrl">
+        <button onclick="pedidoAjustar(${s.id}, -1)">−</button>
+        <span class="qtd-display" id="pedido-qtd-${s.id}">0</span>
+        <button onclick="pedidoAjustar(${s.id}, +1)">+</button>
+      </div>
+    `;
+    lista.appendChild(div);
   });
 }
 
@@ -1577,6 +1627,40 @@ function atualizarResumoPedido() {
   $('pedido-total').textContent = fmt(total);
 }
 
+function repetirPedido() {
+  const { nome, ultimoPedido } = _pedidoRetorno;
+  pedidoCarrinho = {};
+  ultimoPedido.itens.forEach(item => {
+    const s = _pedidoSaboresPublicos.find(s => s.nome === item.sabor);
+    if (s) pedidoCarrinho[s.id] = { nome: s.nome, preco: s.preco, qtd: item.qtd };
+  });
+  const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
+  if (!itens.length) {
+    toast('Nenhum sabor do pedido anterior está disponível no momento.', 'error');
+    fazerNovoPedido();
+    return;
+  }
+  $('pedido-nome').value = nome;
+  const total = itens.reduce((a, i) => a + i.qtd * i.preco, 0);
+  $('revisao-cliente').innerHTML = `<strong>${nome}</strong> &nbsp;|&nbsp; ${$('pedido-telefone').value}`;
+  $('revisao-itens').innerHTML = itens.map(i =>
+    `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;border-bottom:1px solid var(--border);">
+      <span>${i.nome} (${i.qtd}x)</span>
+      <span>${fmt(i.qtd * i.preco)}</span>
+    </div>`
+  ).join('');
+  $('revisao-total').textContent = fmt(total);
+  pedidoMostrarStep('2');
+}
+
+async function fazerNovoPedido() {
+  pedidoCarrinho = {};
+  $('pedido-nome').value = _pedidoRetorno ? _pedidoRetorno.nome : '';
+  $('pedido-carrinho').style.display = 'none';
+  await pedidoRenderizarSabores();
+  pedidoMostrarStep('1-novo');
+}
+
 function abrirRevisao() {
   const nome = $('pedido-nome').value.trim();
   const telefone = $('pedido-telefone').value.trim();
@@ -1587,23 +1671,8 @@ function abrirRevisao() {
     return;
   }
   $('pedido-nome').style.borderColor = '';
-  if (!telefone) {
-    $('pedido-telefone').focus();
-    $('pedido-telefone').style.borderColor = 'var(--coral)';
-    toast('Por favor, informe seu telefone!', 'error');
-    return;
-  }
-  const telefoneSoDigitos = telefone.replace(/\D/g, '');
-  if (telefoneSoDigitos.length < 10 || telefoneSoDigitos.length > 11) {
-    $('pedido-telefone').focus();
-    $('pedido-telefone').style.borderColor = 'var(--coral)';
-    toast('Telefone inválido! Use o formato (XX) XXXXX-XXXX', 'error');
-    return;
-  }
-  $('pedido-telefone').style.borderColor = '';
   const itens = Object.values(pedidoCarrinho).filter(i => i.qtd > 0);
   if (!itens.length) { toast('Adicione ao menos um sabor!', 'error'); return; }
-
   const total = itens.reduce((a, i) => a + i.qtd * i.preco, 0);
   $('revisao-cliente').innerHTML = `<strong>${nome}</strong> &nbsp;|&nbsp; ${telefone}`;
   $('revisao-itens').innerHTML = itens.map(i =>
@@ -1613,7 +1682,7 @@ function abrirRevisao() {
     </div>`
   ).join('');
   $('revisao-total').textContent = fmt(total);
-  pedidoMostrarStep(2);
+  pedidoMostrarStep('2');
 }
 
 async function confirmarPedido() {
@@ -1629,7 +1698,7 @@ async function confirmarPedido() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nome, telefone, itens })
     });
-    pedidoMostrarStep(3);
+    pedidoMostrarStep('3');
     if (res.ok) {
       $('pedido-resultado-ok').style.display = '';
       $('pedido-resultado-erro').style.display = 'none';
@@ -1637,7 +1706,7 @@ async function confirmarPedido() {
       throw new Error('Falha');
     }
   } catch {
-    pedidoMostrarStep(3);
+    pedidoMostrarStep('3');
     $('pedido-resultado-ok').style.display = 'none';
     $('pedido-resultado-erro').style.display = '';
     const nome = $('pedido-nome').value.trim();
@@ -1658,8 +1727,10 @@ $('modal-politica-close').addEventListener('click', () => $('modal-politica').cl
 
 $('btn-abrir-pedido').addEventListener('click', abrirModalPedido);
 $('modal-pedido-close').addEventListener('click', () => $('modal-pedido').classList.remove('open'));
+$('btn-verificar-telefone').addEventListener('click', verificarTelefone);
+$('pedido-telefone').addEventListener('keydown', e => { if (e.key === 'Enter') verificarTelefone(); });
 $('btn-revisar-pedido').addEventListener('click', abrirRevisao);
-$('btn-voltar-pedido').addEventListener('click', () => pedidoMostrarStep(1));
+$('btn-voltar-pedido').addEventListener('click', () => pedidoMostrarStep('1-novo'));
 $('btn-confirmar-pedido').addEventListener('click', confirmarPedido);
 $('btn-fechar-pedido-ok').addEventListener('click', () => $('modal-pedido').classList.remove('open'));
 

@@ -77,4 +77,20 @@ router.post('/pedido-webhook', wrap(async (req, res) => {
   res.json({ ok: true, pedido_id: pedido.lastID });
 }));
 
+router.get('/cliente-historico', wrap(async (req, res) => {
+  let tel = (req.query.telefone || '').replace(/\D/g, '');
+  if (tel.length < 10) return res.json({ encontrado: false });
+  if (!tel.startsWith('55')) tel = '55' + tel;
+  const pedido = await db.get(
+    'SELECT cliente_nome, itens, criado_em FROM pedidos WHERE telefone=$1 ORDER BY criado_em DESC LIMIT 1',
+    [tel]
+  );
+  if (!pedido) return res.json({ encontrado: false });
+  res.json({
+    encontrado: true,
+    nome: pedido.cliente_nome,
+    ultimoPedido: { itens: JSON.parse(pedido.itens), criadoEm: pedido.criado_em }
+  });
+}));
+
 module.exports = router;
