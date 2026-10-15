@@ -25,7 +25,13 @@ router.post('/pedido-webhook', wrap(async (req, res) => {
   if (!nome || !telefone || !Array.isArray(itens) || !itens.length)
     return res.status(400).json({ erro: 'Dados do pedido incompletos' });
 
-  const sabores_geladinho = itens.map(i => `${i.sabor} (${i.qtd}x)`).join('\n');
+  // total calculado com os preços do banco (não confia em valores vindos do navegador)
+  const precos = Object.fromEntries(
+    (await db.all('SELECT nome, preco FROM sabores')).map(s => [s.nome, Number(s.preco) || 0])
+  );
+  const total = itens.reduce((a, i) => a + (Number(i.qtd) || 0) * (precos[i.sabor] || 0), 0);
+  const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const sabores_geladinho = itens.map(i => `${i.sabor} (${i.qtd}x)`).join('\n') + `\n\n*Total: ${totalFmt}*`;
   // Normalizar telefone: remover formatação e garantir código do país 55
   let telefoneNorm = (telefone || '').replace(/[\s\-\+\(\)]/g, '');
   if (!telefoneNorm.startsWith('55')) telefoneNorm = '55' + telefoneNorm;
@@ -47,7 +53,7 @@ router.post('/pedido-webhook', wrap(async (req, res) => {
       const payload = JSON.stringify({
         body: {
           cliente: { nome, telefone: telefoneNorm },
-          pedido: { sabores_geladinho }
+          pedido: { sabores_geladinho, total, total_formatado: totalFmt }
         }
       });
       const auth = Buffer.from(`${user}:${pass}`).toString('base64');
