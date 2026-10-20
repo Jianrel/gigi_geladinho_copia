@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../database');
 const wrap = require('../utils/wrap');
+const { STATUS_VALIDOS, mudarStatusPedido } = require('../utils/statusPedido');
 
 router.get('/', wrap(async (req, res) => {
   const { status } = req.query;
@@ -15,12 +16,9 @@ router.get('/', wrap(async (req, res) => {
 
 router.put('/:id', wrap(async (req, res) => {
   const { status } = req.body;
-  const validos = ['novo', 'em_producao', 'entregue', 'cancelado'];
-  if (!validos.includes(status)) return res.status(400).json({ erro: 'Status inválido' });
-  await db.run('UPDATE pedidos SET status=? WHERE id=?', [status, req.params.id]);
-  // pedido cancelado não vai mais ser recebido: sai do "a receber" do fluxo de caixa
-  if (status === 'cancelado')
-    await db.run("DELETE FROM fluxo_caixa_avulso WHERE pedido_id=? AND status='previsto'", [req.params.id]);
+  if (!STATUS_VALIDOS.includes(status)) return res.status(400).json({ erro: 'Status inválido' });
+  const r = await mudarStatusPedido(req.params.id, status);
+  if (!r) return res.status(404).json({ erro: 'Pedido não encontrado' });
   res.json({ ok: true });
 }));
 

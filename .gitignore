@@ -4,3 +4,6 @@ node_modules/
 *.db-shm
 .env
 .vercel
+
+# exportacoes do n8n (podem conter credenciais)
+Jailson - Geladinho.json

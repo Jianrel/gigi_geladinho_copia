@@ -13,6 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ─── ROTAS PÚBLICAS (sem autenticação) ────────
 app.use('/api', authRoutes);                       // login, alterar-senha (protegida internamente), logout
 app.use('/api', require('./routes/publico'));       // sabores-publico, pedido-webhook
+app.use('/api/n8n', require('./routes/n8n'));       // chamadas do n8n (autenticação própria)
 
 // ─── MIDDLEWARE AUTH (protege todas as rotas abaixo) ──
 app.use('/api', auth);

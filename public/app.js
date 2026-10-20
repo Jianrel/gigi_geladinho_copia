@@ -1824,7 +1824,7 @@ $('btn-fechar-pedido-ok').addEventListener('click', () => $('modal-pedido').clas
 // ─── PEDIDOS ──────────────────────────────────
 const STATUS_LABEL = {
   novo: 'Novo',
-  em_producao: 'Em produção',
+  em_producao: 'Em separação',
   entregue: 'Entregue',
   cancelado: 'Cancelado'
 };

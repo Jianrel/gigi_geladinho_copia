@@ -138,6 +138,9 @@ async function inicializar() {
     ALTER TABLE fluxo_caixa_avulso ADD COLUMN IF NOT EXISTS valor_previsto REAL;
     ALTER TABLE fluxo_caixa_avulso ADD COLUMN IF NOT EXISTS pedido_id INTEGER REFERENCES pedidos(id) ON DELETE SET NULL;
 
+    -- id da mensagem de enquete (WhatsApp) enviada à Gigi para atualizar o status do pedido
+    ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS wa_enquete_id TEXT;
+
     CREATE TABLE IF NOT EXISTS fluxo_categorias (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL UNIQUE,

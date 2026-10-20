@@ -1,9 +1,9 @@
 // Rotas públicas usadas na tela de pedido do cliente, sem necessidade de login.
 const express = require('express');
 const router = express.Router();
-const https = require('https');
 const { db } = require('../database');
 const wrap = require('../utils/wrap');
+const { notificarN8n } = require('../utils/n8n');
 
 router.get('/config', (req, res) => {
   const custo = process.env.CUSTO_FORNECEDOR;
@@ -56,43 +56,12 @@ router.post('/pedido-webhook', wrap(async (req, res) => {
     }
   }
 
-  // 2. Tenta notificar via webhook do n8n (best-effort — não derruba o pedido já salvo)
-  const webhookUrl = process.env.N8N_WEBHOOK_URL;
-  const user = process.env.N8N_USER;
-  const pass = process.env.N8N_PASS;
-  if (!webhookUrl || !user || !pass) {
-    console.error('⚠️  N8N_WEBHOOK_URL / N8N_USER / N8N_PASS não configurados — pedido salvo, mas notificação não foi enviada.');
-  } else {
-    try {
-      const payload = JSON.stringify({
-        body: {
-          cliente: { nome, telefone: telefoneNorm },
-          pedido: { sabores_geladinho, total, total_formatado: totalFmt }
-        }
-      });
-      const auth = Buffer.from(`${user}:${pass}`).toString('base64');
-      const url = new URL(webhookUrl);
-      await new Promise((resolve, reject) => {
-        const options = {
-          hostname: url.hostname,
-          port: 443,
-          path: url.pathname,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload),
-            'Authorization': `Basic ${auth}`
-          }
-        };
-        const r = https.request(options, resp => { resp.resume(); resp.on('end', resolve); });
-        r.on('error', reject);
-        r.write(payload);
-        r.end();
-      });
-    } catch (e) {
-      console.error('Erro ao notificar webhook n8n (pedido já está salvo):', e.message);
-    }
-  }
+  // 2. Notifica o n8n (best-effort — não derruba o pedido já salvo)
+  await notificarN8n({
+    evento: 'novo_pedido',
+    cliente: { nome, telefone: telefoneNorm },
+    pedido: { id: pedido.lastID, sabores_geladinho, total, total_formatado: totalFmt }
+  });
 
   res.json({ ok: true, pedido_id: pedido.lastID });
 }));
