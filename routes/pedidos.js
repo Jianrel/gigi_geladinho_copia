@@ -18,6 +18,9 @@ router.put('/:id', wrap(async (req, res) => {
   const validos = ['novo', 'em_producao', 'entregue', 'cancelado'];
   if (!validos.includes(status)) return res.status(400).json({ erro: 'Status inválido' });
   await db.run('UPDATE pedidos SET status=? WHERE id=?', [status, req.params.id]);
+  // pedido cancelado não vai mais ser recebido: sai do "a receber" do fluxo de caixa
+  if (status === 'cancelado')
+    await db.run("DELETE FROM fluxo_caixa_avulso WHERE pedido_id=? AND status='previsto'", [req.params.id]);
   res.json({ ok: true });
 }));
 

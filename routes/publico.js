@@ -42,6 +42,20 @@ router.post('/pedido-webhook', wrap(async (req, res) => {
     [nome, telefoneNorm, JSON.stringify(itens)]
   );
 
+  // Entra no fluxo de caixa como "a receber"; vira realizado quando o pagamento for marcado
+  if (total > 0) {
+    try {
+      const dataHoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+      await db.run(
+        `INSERT INTO fluxo_caixa_avulso (data, descricao, tipo, categoria, valor, status, data_prevista, valor_previsto, pedido_id)
+         VALUES (?, ?, 'entrada', 'Vendas', ?, 'previsto', ?, ?, ?)`,
+        [dataHoje, `Pedido #${pedido.lastID} — ${nome}`, total, dataHoje, total, pedido.lastID]
+      );
+    } catch (e) {
+      console.error('Erro ao lançar pedido no fluxo de caixa (pedido já está salvo):', e.message);
+    }
+  }
+
   // 2. Tenta notificar via webhook do n8n (best-effort — não derruba o pedido já salvo)
   const webhookUrl = process.env.N8N_WEBHOOK_URL;
   const user = process.env.N8N_USER;

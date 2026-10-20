@@ -28,6 +28,8 @@ Chart.defaults.set('plugins.datalabels', {
 const $ = id => document.getElementById(id);
 const fmt = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
 const fmtNum = v => Number(v || 0).toLocaleString('pt-BR');
+// escapa texto antes de inserir em innerHTML (nomes digitados por clientes no site)
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hoje = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -1309,16 +1311,22 @@ $('confirmar-senha').addEventListener('keydown', e => { if (e.key === 'Enter') c
 $('btn-logout').addEventListener('click', fazerLogout);
 
 // ─── CATEGORIAS FLUXO ────────────────────────
-const CATS_BASE = ['Vendas','Nubank','Mercado Pago','Combustível','Supermercado','Energia','Água','Internet','Produção','Outros'];
+// Categorias ficam salvas no servidor, iguais em qualquer aparelho.
+let fluxoCategorias = [];
 
-function getCategorias() {
-  const extras = JSON.parse(localStorage.getItem('fluxo_categorias') || '[]');
-  return [...CATS_BASE, ...extras.filter(c => !CATS_BASE.includes(c))];
+async function carregarCategorias() {
+  // migra categorias criadas antes, quando ficavam só no navegador
+  let antigas = [];
+  try { antigas = JSON.parse(localStorage.getItem('fluxo_categorias') || '[]'); } catch (e) {}
+  for (const nome of antigas) await api('/api/fluxo-caixa/categorias', { method: 'POST', body: { nome } });
+  if (antigas.length) localStorage.removeItem('fluxo_categorias');
+
+  fluxoCategorias = (await api('/api/fluxo-caixa/categorias')) || fluxoCategorias;
 }
 
-function salvarCategoriaNova(nome) {
-  const extras = JSON.parse(localStorage.getItem('fluxo_categorias') || '[]');
-  if (!extras.includes(nome)) { extras.push(nome); localStorage.setItem('fluxo_categorias', JSON.stringify(extras)); }
+async function salvarCategoriaNova(nome) {
+  await api('/api/fluxo-caixa/categorias', { method: 'POST', body: { nome } });
+  if (!fluxoCategorias.includes(nome)) fluxoCategorias.push(nome);
 }
 
 function popularSelectCategorias(selectId, comTodas = false) {
@@ -1327,8 +1335,8 @@ function popularSelectCategorias(selectId, comTodas = false) {
   sel.innerHTML = '';
   if (comTodas) sel.innerHTML += '<option value="">Todas</option>';
   else sel.innerHTML += '<option value="">— Selecione —</option>';
-  getCategorias().forEach(c => { sel.innerHTML += `<option value="${c}">${c}</option>`; });
-  sel.innerHTML += '<option value="__nova__">+ Nova categoria...</option>';
+  fluxoCategorias.forEach(c => { sel.innerHTML += `<option value="${esc(c)}">${esc(c)}</option>`; });
+  if (!comTodas) sel.innerHTML += '<option value="__nova__">+ Nova categoria...</option>';
   if (atual) sel.value = atual;
 }
 
@@ -1347,16 +1355,23 @@ const CATEGORIA_BADGE = {
 };
 function badgeCategoria(cat) {
   const cls = CATEGORIA_BADGE[cat] || '';
-  return `<span class="badge ${cls}">${cat || '—'}</span>`;
+  return `<span class="badge ${cls}">${esc(cat || '—')}</span>`;
+}
+
+function cardResumo(cor, icone, valor, rotulo) {
+  return `<div class="card ${cor}"><div class="card-icon">${icone}</div><div class="card-info"><div class="card-value">${valor}</div><div class="card-label">${rotulo}</div></div></div>`;
 }
 
 const FLUXO_POR_PAGINA = 20;
 let fluxoPagina = 1;
 let fluxoRegistros = [];
+let fluxoDados = null;
+let fluxoRealizarId = null;
 
 async function carregarFluxo() {
   popularAnosSelect('fluxo-ano');
   inicializarMesAtual('fluxo-mes');
+  await carregarCategorias();
   popularSelectCategorias('fluxo-filtro-cat', true);
   await buscarFluxo();
 }
@@ -1371,26 +1386,40 @@ async function buscarFluxo() {
   } else {
     url = `/api/fluxo-caixa?mes=${$('fluxo-mes').value}&ano=${$('fluxo-ano').value}`;
   }
-  fluxoRegistros = await api(url);
+  const dados = await api(url);
+  if (!dados) return;
+  fluxoDados = dados;
+  fluxoRegistros = dados.registros;
   renderizarFluxo();
 }
 
 function renderizarFluxo() {
+  const d = fluxoDados;
   const catFiltro = $('fluxo-filtro-cat').value;
   const registros = catFiltro
     ? fluxoRegistros.filter(r => (r.categoria || '') === catFiltro)
     : fluxoRegistros;
-  const totalEntradas = registros.filter(r => r.tipo === 'entrada').reduce((a, r) => a + parseFloat(r.valor), 0);
-  const totalSaidas   = registros.filter(r => r.tipo === 'saida').reduce((a, r) => a + parseFloat(r.valor), 0);
-  const saldoFinal    = totalEntradas - totalSaidas;
-  const saldoClass    = saldoFinal >= 0 ? 'card-green' : 'card-red';
-  const saldoIcon     = saldoFinal >= 0 ? '📈' : '📉';
+  // entradas e saídas do período contam só o que já foi pago/recebido
+  const realizados = registros.filter(r => r.status === 'realizado');
+  const totalEntradas = realizados.filter(r => r.tipo === 'entrada').reduce((a, r) => a + r.valor, 0);
+  const totalSaidas   = realizados.filter(r => r.tipo === 'saida').reduce((a, r) => a + r.valor, 0);
+  const fmtSaldo = v => v === null ? '—' : fmt(v);
+  const corSaldo = v => v === null || v >= 0 ? 'card-green' : 'card-red';
 
-  $('fluxo-resumo').innerHTML = `
-    <div class="card card-green"><div class="card-icon">💰</div><div class="card-info"><div class="card-value">${fmt(totalEntradas)}</div><div class="card-label">Total Entradas</div></div></div>
-    <div class="card card-red"><div class="card-icon">💸</div><div class="card-info"><div class="card-value">${fmt(totalSaidas)}</div><div class="card-label">Total Saídas</div></div></div>
-    <div class="card ${saldoClass}"><div class="card-icon">${saldoIcon}</div><div class="card-info"><div class="card-value">${fmt(saldoFinal)}</div><div class="card-label">Saldo do Período</div></div></div>
-  `;
+  $('fluxo-aviso').style.display = d.saldoInicial ? 'none' : 'block';
+  $('fluxo-aviso').innerHTML = '⚠️ O saldo inicial ainda não foi informado. Clique em <strong>⚙️ Saldo inicial</strong> e diga quanto havia em caixa para os saldos ficarem corretos.';
+
+  $('fluxo-resumo').innerHTML =
+    cardResumo('card-blue', '🏁', fmtSaldo(d.saldoAnterior), 'Saldo no início do período') +
+    cardResumo('card-green', '💰', fmt(totalEntradas), catFiltro ? `Entradas (${esc(catFiltro)})` : 'Entradas') +
+    cardResumo('card-red', '💸', fmt(totalSaidas), catFiltro ? `Saídas (${esc(catFiltro)})` : 'Saídas') +
+    cardResumo(corSaldo(d.saldoFinal), d.saldoFinal === null || d.saldoFinal >= 0 ? '📈' : '📉', fmtSaldo(d.saldoFinal), 'Saldo no fim do período');
+
+  $('fluxo-resumo-previsto').innerHTML =
+    cardResumo(corSaldo(d.saldoAtual), '🏦', fmt(d.saldoAtual), 'Saldo atual em caixa') +
+    cardResumo('card-yellow', '📥', fmt(d.aReceber), 'A receber (previsto)') +
+    cardResumo('card-purple', '📤', fmt(d.aPagar), 'A pagar (previsto)') +
+    cardResumo(corSaldo(d.saldoPrevisto), '🔮', fmt(d.saldoPrevisto), 'Saldo previsto');
 
   const tbody = $('fluxo-tbody');
   tbody.innerHTML = '';
@@ -1406,18 +1435,26 @@ function renderizarFluxo() {
   const pagina = registros.slice(inicio, inicio + FLUXO_POR_PAGINA);
 
   pagina.forEach(r => {
-    const [a, m, d] = r.data.split('-');
+    const [a, m, dia] = r.data.split('-');
     const isEntrada = r.tipo === 'entrada';
+    const previsto = r.status === 'previsto';
     const saldoColor = r.saldo >= 0 ? 'text-green' : 'text-red';
+    let acoes = '<span style="color:var(--text-muted);font-size:0.8rem">auto</span>';
+    if (r.origem === 'avulso') {
+      acoes = (previsto
+        ? `<button class="btn btn-success" onclick="abrirRealizar(${r.id})">✔ ${isEntrada ? 'Recebido' : 'Pago'}</button> `
+        : '') + `<button class="btn btn-danger" onclick="deletarAvulso(${r.id})">🗑</button>`;
+    }
     const tr = document.createElement('tr');
+    if (previsto) tr.className = 'fluxo-previsto';
     tr.innerHTML = `
-      <td>${d}/${m}/${a}</td>
-      <td>${r.descricao}</td>
+      <td>${dia}/${m}/${a}</td>
+      <td>${esc(r.descricao)}</td>
       <td>${badgeCategoria(r.categoria)}</td>
-      <td><span class="fluxo-tipo ${isEntrada ? 'tipo-entrada' : 'tipo-saida'}">${isEntrada ? 'Entrada' : 'Saída'}</span></td>
+      <td><span class="fluxo-tipo ${isEntrada ? 'tipo-entrada' : 'tipo-saida'}">${isEntrada ? 'Entrada' : 'Saída'}</span>${previsto ? ' <span class="fluxo-tipo tipo-previsto">Previsto</span>' : ''}</td>
       <td class="fw-bold ${isEntrada ? 'text-green' : 'text-red'}">${isEntrada ? '+' : '-'} ${fmt(r.valor)}</td>
-      <td class="fw-bold ${saldoColor}">${fmt(r.saldo)}</td>
-      <td>${r.origem === 'avulso' ? `<button class="btn btn-danger" onclick="deletarAvulso(${r.id})">🗑</button>` : '<span style="color:var(--text-muted);font-size:0.8rem">auto</span>'}</td>
+      <td class="fw-bold ${r.saldo === null ? '' : saldoColor}">${r.saldo === null ? '—' : fmt(r.saldo)}</td>
+      <td style="white-space:nowrap;">${acoes}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1448,19 +1485,64 @@ async function deletarAvulso(id) {
 async function salvarAvulso() {
   const data      = $('avulso-data').value;
   const tipo      = $('avulso-tipo').value;
+  const status    = $('avulso-status').value;
   const categoria = $('avulso-categoria').value.trim();
   const descricao = $('avulso-descricao').value.trim();
   const valor     = parseFloat($('avulso-valor').value);
   if (!data || !descricao || !valor) return toast('Preencha data, descrição e valor!', 'error');
-  await api('/api/fluxo-caixa/avulso', { method: 'POST', body: { data, tipo, categoria, descricao, valor } });
+  if (categoria === '__nova__') return toast('Confirme o nome da nova categoria!', 'error');
+  const r = await api('/api/fluxo-caixa/avulso', { method: 'POST', body: { data, tipo, status, categoria, descricao, valor } });
+  if (!r) return;
   $('modal-avulso').classList.remove('open');
   toast('✅ Lançamento salvo!');
+  await buscarFluxo();
+}
+
+function abrirRealizar(id) {
+  const r = fluxoRegistros.find(x => x.origem === 'avulso' && x.id === id);
+  if (!r) return;
+  fluxoRealizarId = id;
+  const isEntrada = r.tipo === 'entrada';
+  $('realizar-titulo').textContent = isEntrada ? '✔ Marcar como recebido' : '✔ Marcar como pago';
+  $('realizar-descricao').textContent = `${r.descricao} — previsto: ${fmt(r.valor)}`;
+  $('realizar-data').value = hoje();
+  $('realizar-valor').value = r.valor;
+  $('modal-realizar').classList.add('open');
+}
+
+async function confirmarRealizar() {
+  const data  = $('realizar-data').value;
+  const valor = parseFloat($('realizar-valor').value);
+  if (!data || !valor) return toast('Preencha a data e o valor!', 'error');
+  const r = await api(`/api/fluxo-caixa/avulso/${fluxoRealizarId}/realizar`, { method: 'PUT', body: { data, valor } });
+  if (!r) return;
+  $('modal-realizar').classList.remove('open');
+  toast('✅ Lançamento confirmado!');
+  await buscarFluxo();
+}
+
+async function abrirSaldoInicial() {
+  const s = await api('/api/fluxo-caixa/saldo-inicial');
+  $('saldo-inicial-data').value = s ? s.data : hoje();
+  $('saldo-inicial-valor').value = s ? s.valor : '';
+  $('modal-saldo-inicial').classList.add('open');
+}
+
+async function salvarSaldoInicial() {
+  const data  = $('saldo-inicial-data').value;
+  const valor = $('saldo-inicial-valor').value;
+  if (!data || valor === '') return toast('Preencha a data e o valor!', 'error');
+  const r = await api('/api/fluxo-caixa/saldo-inicial', { method: 'PUT', body: { data, valor: parseFloat(valor) } });
+  if (!r) return;
+  $('modal-saldo-inicial').classList.remove('open');
+  toast('✅ Saldo inicial salvo!');
   await buscarFluxo();
 }
 
 $('btn-novo-avulso').addEventListener('click', () => {
   $('avulso-data').value = hoje();
   $('avulso-tipo').value = 'entrada';
+  $('avulso-status').value = 'realizado';
   $('avulso-descricao').value = '';
   $('avulso-valor').value = '';
   $('avulso-nova-cat-wrap').style.display = 'none';
@@ -1478,10 +1560,10 @@ $('avulso-categoria').addEventListener('change', () => {
   }
 });
 
-$('btn-confirmar-nova-cat').addEventListener('click', () => {
+$('btn-confirmar-nova-cat').addEventListener('click', async () => {
   const nome = $('avulso-nova-cat-input').value.trim();
   if (!nome) return toast('Digite o nome da categoria!', 'error');
-  salvarCategoriaNova(nome);
+  await salvarCategoriaNova(nome);
   popularSelectCategorias('avulso-categoria');
   popularSelectCategorias('fluxo-filtro-cat', true);
   $('avulso-categoria').value = nome;
@@ -1491,6 +1573,11 @@ $('btn-confirmar-nova-cat').addEventListener('click', () => {
 });
 $('modal-avulso-close').addEventListener('click', () => $('modal-avulso').classList.remove('open'));
 $('btn-salvar-avulso').addEventListener('click', salvarAvulso);
+$('btn-saldo-inicial').addEventListener('click', abrirSaldoInicial);
+$('modal-saldo-inicial-close').addEventListener('click', () => $('modal-saldo-inicial').classList.remove('open'));
+$('btn-salvar-saldo-inicial').addEventListener('click', salvarSaldoInicial);
+$('modal-realizar-close').addEventListener('click', () => $('modal-realizar').classList.remove('open'));
+$('btn-confirmar-realizar').addEventListener('click', confirmarRealizar);
 $('fluxo-mes').addEventListener('change', buscarFluxo);
 $('fluxo-ano').addEventListener('change', buscarFluxo);
 $('btn-fluxo-buscar').addEventListener('click', buscarFluxo);
@@ -1763,7 +1850,7 @@ async function renderizarPedidos() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${dataHora}</td>
-      <td>${p.cliente_nome}</td>
+      <td>${esc(p.cliente_nome)}</td>
       <td>${p.telefone}</td>
       <td>${itensTexto}</td>
       <td><span class="badge badge-${p.status}">${STATUS_LABEL[p.status] || p.status}</span></td>

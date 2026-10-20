@@ -963,6 +963,18 @@ body:has(#login-overlay:not([style*="display: none"])) { overflow: hidden; }
 }
 .tipo-entrada { background: var(--verde-light); color: var(--verde-dark); }
 .tipo-saida   { background: var(--coral-light); color: var(--coral); }
+.tipo-previsto { background: #FEF3C7; color: #B45309; }
+.fluxo-previsto td { background: #FFFBEB; }
+.fluxo-previsto td:nth-child(5) { opacity: 0.75; }
+.fluxo-aviso {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
 
 .badge {
   display: inline-block;

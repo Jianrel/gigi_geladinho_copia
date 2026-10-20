@@ -130,6 +130,42 @@ async function inicializar() {
     );
   `);
 
+  // Fluxo de caixa: previsto x realizado, vínculo com pedido, categorias e saldo inicial
+  await db.exec(`
+    ALTER TABLE fluxo_caixa_avulso ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'realizado'
+      CHECK (status IN ('previsto', 'realizado'));
+    ALTER TABLE fluxo_caixa_avulso ADD COLUMN IF NOT EXISTS data_prevista TEXT;
+    ALTER TABLE fluxo_caixa_avulso ADD COLUMN IF NOT EXISTS valor_previsto REAL;
+    ALTER TABLE fluxo_caixa_avulso ADD COLUMN IF NOT EXISTS pedido_id INTEGER REFERENCES pedidos(id) ON DELETE SET NULL;
+
+    CREATE TABLE IF NOT EXISTS fluxo_categorias (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL UNIQUE,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS configuracoes (
+      chave TEXT PRIMARY KEY,
+      valor TEXT
+    );
+  `);
+
+  const cats = await db.get('SELECT COUNT(*) as c FROM fluxo_categorias');
+  if (parseInt(cats.c) === 0) {
+    const base = ['Vendas', 'Nubank', 'Mercado Pago', 'Ingredientes/Fornecedor', 'Embalagem', 'Produção',
+      'Supermercado', 'Combustível', 'Entrega', 'Gás', 'Energia', 'Água', 'Internet',
+      'Despesas fixas', 'Impostos (DAS)', 'Outros'];
+    for (const nome of base) {
+      await db.run('INSERT INTO fluxo_categorias (nome) VALUES (?) ON CONFLICT (nome) DO NOTHING', [nome]);
+    }
+  }
+  // categorias já usadas em lançamentos (inclusive as que antes ficavam só no navegador)
+  await db.exec(`
+    INSERT INTO fluxo_categorias (nome)
+    SELECT DISTINCT categoria FROM fluxo_caixa_avulso WHERE categoria IS NOT NULL AND categoria NOT IN ('', '__nova__')
+    ON CONFLICT (nome) DO NOTHING
+  `);
+
   const row = await db.get('SELECT COUNT(*) as c FROM sabores');
   if (parseInt(row.c) === 0) {
     const sabores = [
