@@ -10,7 +10,7 @@ function mensagemCliente(status, nome, id) {
   if (status === 'em_producao')
     return `Oi, *${nome}*! 😊\n\nSeu pedido #${id} já está sendo separado. Logo sai para entrega! 🍧`;
   if (status === 'entregue')
-    return `Pedido #${id} entregue! ✅\n\nObrigada pela preferência, *${nome}* 💚 Bom geladinho!`;
+    return `Pedido #${id} entregue! ✅\n\nObrigada pela preferência, *${nome}* 💚 Refresque-se com muito sabor!`;
   return null;
 }
 
