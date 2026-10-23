@@ -1126,7 +1126,7 @@ $('btn-salvar-producao').addEventListener('click', async () => {
   });
   
   $('modal-producao').classList.remove('open');
-  toast('✅ Gasto de produção registrado!', 'success');
+  toast('✅ Produção registrada! (não entra no Fluxo de Caixa)', 'success');
   
   $('btn-tab-historico').click();
   renderizarGastos();
@@ -1444,6 +1444,8 @@ function renderizarFluxo() {
       acoes = (previsto
         ? `<button class="btn btn-success" onclick="abrirRealizar(${r.id})">✔ ${isEntrada ? 'Recebido' : 'Pago'}</button> `
         : '') + `<button class="btn btn-danger" onclick="deletarAvulso(${r.id})">🗑</button>`;
+    } else if (r.origem === 'gasto') {
+      acoes = `<button class="btn btn-danger" title="Tirar do Fluxo de Caixa" onclick="removerGastoDoFluxo(${r.id})">🗑</button>`;
     }
     const tr = document.createElement('tr');
     if (previsto) tr.className = 'fluxo-previsto';
@@ -1479,6 +1481,14 @@ async function deletarAvulso(id) {
   if (!confirm('Excluir este lançamento?')) return;
   await api(`/api/fluxo-caixa/avulso/${id}`, { method: 'DELETE' });
   toast('Lançamento excluído!', 'info');
+  await buscarFluxo();
+}
+
+async function removerGastoDoFluxo(id) {
+  if (!confirm('Tirar este lançamento de produção do Fluxo de Caixa? Ele continua no histórico da tela Gastos e o estoque não muda.')) return;
+  const r = await api(`/api/fluxo-caixa/gasto/${id}/remover`, { method: 'PUT' });
+  if (!r) return;
+  toast('Lançamento retirado do Fluxo de Caixa!', 'info');
   await buscarFluxo();
 }
 

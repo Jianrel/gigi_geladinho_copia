@@ -9,9 +9,9 @@ router.post('/', wrap(async (req, res) => {
   if (!data || !sabor_id || !geladinhos_produzidos) return res.status(400).json({ erro: 'Dados incompletos' });
   const qtd = Math.max(0, parseInt(geladinhos_produzidos) || 0);
 
-  // 1. Grava o gasto de produção
+  // 1. Grava o gasto de produção (fica no histórico de Gastos, mas não entra no fluxo de caixa)
   const gasto = await db.run(
-    'INSERT INTO gastos_producao (data,sabor_id,descricao,valor,geladinhos_produzidos) VALUES (?,?,?,?,?)',
+    'INSERT INTO gastos_producao (data,sabor_id,descricao,valor,geladinhos_produzidos,no_fluxo) VALUES (?,?,?,?,?,FALSE)',
     [data, sabor_id, descricao, valor, qtd]
   );
 

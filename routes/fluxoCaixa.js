@@ -27,13 +27,13 @@ async function listarMovimentos({ desde, ate, antesDe } = {}) {
       ${fv.sql}
   `, fv.p);
 
-  // Saídas: gastos de produção
+  // Saídas: gastos de produção (só os que estão marcados para o fluxo)
   const fg = filtro('g.data');
   const gastos = await db.all(`
-    SELECT g.data, COALESCE('Produção: ' || s.nome, g.descricao, 'Gasto avulso') as descricao,
+    SELECT g.id, g.data, COALESCE('Produção: ' || s.nome, g.descricao, 'Gasto avulso') as descricao,
       'saida' as tipo, 'Produção' as categoria, g.valor
     FROM gastos_producao g LEFT JOIN sabores s ON g.sabor_id = s.id
-    WHERE 1=1 ${fg.sql}
+    WHERE g.no_fluxo ${fg.sql}
   `, fg.p);
 
   // Lançamentos avulsos (realizados e previstos)
@@ -139,6 +139,13 @@ router.put('/avulso/:id/realizar', wrap(async (req, res) => {
     [data, parseFloat(valor), req.params.id]
   );
   if (!r.changes) return res.status(404).json({ erro: 'Lançamento previsto não encontrado' });
+  res.json({ ok: true });
+}));
+
+// tira um gasto de produção do fluxo de caixa; ele continua no histórico da tela Gastos
+router.put('/gasto/:id/remover', wrap(async (req, res) => {
+  const r = await db.run('UPDATE gastos_producao SET no_fluxo = FALSE WHERE id=?', [req.params.id]);
+  if (!r.changes) return res.status(404).json({ erro: 'Lançamento não encontrado' });
   res.json({ ok: true });
 }));
 
